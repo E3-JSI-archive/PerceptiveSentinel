@@ -1,5 +1,5 @@
 //Changed function for cloud detection. 
-//In original version in the last line (ln24) there was: "return [B04, B03, B02].map(a => gain * a);",
+//In original version in the last line (ln25) there was: "return [B04, B03, B02].map(a => gain * a);",
 // because it was returning True Color image, but I want to get NDVI. 
 
 function index(x, y) {

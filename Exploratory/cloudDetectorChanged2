@@ -1,0 +1,28 @@
+//Changed function for cloud detection. 
+//In original version in the last line (ln27) there was: "return [B04, B03, B02].map(a => gain * a);",
+//because it was returning True Color image, but I want to get NDVI.
+//In previous lines there is code for detecting clouds on the image. 
+
+function index(x, y) {
+	return (x - y) / (x + y);
+}
+
+function clip(a) {
+  return Math.max(0, Math.min(1, a));
+}
+
+let bRatio = (B03 - 0.175) / (0.39 - 0.175);
+let NGDR = index(B03, B04);
+let gain = 2.5;
+
+if (B11>0.1 && bRatio > 1) { //cloud
+  var v = 0.5*(bRatio - 1);
+  return [0.5*clip(B04), 0.5*clip(B03), 0.5*clip(B02) + v];
+}
+
+if (B11 > 0.1 && bRatio > 0 && NGDR>0) { //cloud
+  var v = 5 * Math.sqrt(bRatio * NGDR);
+  return [0.5 * clip(B04) + v, 0.5 * clip(B03), 0.5 * clip(B02)];
+}
+
+return [(B08 - B04)/(B08 + B04)].map(a => gain * a);

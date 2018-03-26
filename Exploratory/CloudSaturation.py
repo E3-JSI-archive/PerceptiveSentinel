@@ -171,3 +171,8 @@ class CloudSaturation:
         if self.memo_data is None:
             self.get_cloud_saturation_mask()
         return np.nonzero(self.memo_data.cloud_masks[:, x_ind, y_ind])
+
+    def get_visible_filter(self, x_ind, y_ind):
+        if self.memo_data is None:
+            self.get_cloud_saturation_mask()
+        return np.nonzero(1-self.memo_data.cloud_masks[:, x_ind, y_ind])

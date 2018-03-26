@@ -5,7 +5,9 @@ H2020 PerceptiveSentinel exploratory analysis folder with different utilities fo
 * initial prototype for acquisition of time-series data from SentinelHub
 
 TODO:
-*
+
+* exploratory analysis of time-series (missing data)
+* time-series classification algorithm ()
 
 ## Documentation and helpful links
 

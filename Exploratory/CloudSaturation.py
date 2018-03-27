@@ -1,4 +1,5 @@
 import datetime
+import pyproj
 
 import numpy as np
 
@@ -9,9 +10,24 @@ from sentinelhub import CustomUrlParam
 
 from s2cloudless import S2PixelCloudDetector
 
+from DataRequest.DataRequest import TulipFieldRequest
+
+
+
 #INSTANCE_ID = open("INSTANCE_ID").read()
 INSTANCE_ID = "b1062c36-3d9a-4df5-ad3d-ab0d40ae3ca0"
 
+layers = {'tulip_field_2016':'ttl1904', 'tulip_field_2017':'ttl1905', 'arable_land_2017':'ttl1917'}
+
+
+def to_epsg3857(latlong_wgs84):
+    if len(latlong_wgs84) != 2:
+        # Good idea??
+        return [to_epsg3857([latlong_wgs84[0], latlong_wgs84[1]]), to_epsg3857([latlong_wgs84[2], latlong_wgs84[3]])]
+    # Keep accepting [[a,b], [c,d]] so that leaflet can call it without any changes
+    epsg3857 = pyproj.Proj(init='epsg:3857')
+    wgs84 = pyproj.Proj(init='EPSG:4326')
+    return list(pyproj.transform(wgs84,epsg3857,latlong_wgs84[1],latlong_wgs84[0]))
 
 class CloudSaturation:
     class MemoData:
@@ -176,3 +192,23 @@ class CloudSaturation:
         if self.memo_data is None:
             self.get_cloud_saturation_mask()
         return np.nonzero(1-self.memo_data.cloud_masks[:, x_ind, y_ind])
+
+
+    def get_tulip_mask(self, layer_name):
+        geopedia_layer_name = layers[layer_name]
+
+        h = self.memo_data.true_color.shape[1]
+        w = self.memo_data.true_color.shape[2]
+        tulipFields = TulipFieldRequest(bbox=to_epsg3857(self.coordinates),
+                                        width=w, height=h, crs=3857,
+                                        layer=geopedia_layer_name)
+        # Values [255,255,255] on some pixel mean, that there WAS NO field at that pixel
+        tulip_field = tulipFields.get_data()[0]
+        # Values 1 means NO tulips
+        # There sure is a better way, but this works
+        tulip_field_mask = 1 - np.array(np.dot(tulip_field[..., :], [1, 1, 1]) / 765, dtype=int)
+        # tulip_field_mask = 1 - tulip_field_mask ## -> 1 tulips, 0 no tulips
+
+        nonzero_indices = list(zip(*np.nonzero(tulip_field_mask)))
+
+        return tulip_field, tulip_field_mask, nonzero_indices

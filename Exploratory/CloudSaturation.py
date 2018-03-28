@@ -48,7 +48,7 @@ class CloudSaturation:
                  redownload=False,
                  instance_id=INSTANCE_ID,
                  cloud_detector_config=
-                 dict(threshold=0.4, average_over=4, dilation_size=2)
+                 dict(threshold=0.4, average_over=4, dilation_size=2, all_bands=True)
                  ):
         self.coordinates = coordinates
         self.bbox = BBox(bbox=self.coordinates, crs=CRS.WGS84)
@@ -67,7 +67,6 @@ class CloudSaturation:
         self.memo_data = None  # type: CloudSaturation.MemoData
 
     def create_requests(self):
-        bands_script = 'return [B01,B02,B04,B05,B08,B8A,B09,B10,B11,B12]'
 
         wms_true_color_request = WcsRequest(layer='TRUE_COLOR',
                                             bbox=self.bbox,
@@ -87,10 +86,9 @@ class CloudSaturation:
         cloud_bbox[2] += 0.001
         cloud_bbox[3] += 0.001
         # Note: large widths are much much slower and more computationally expensive
-        wms_bands_request = WcsRequest(layer='TRUE_COLOR',
+        wms_bands_request = WcsRequest(layer='ALL-BANDS',
                                        data_folder=self.data_folder_name,
                                        custom_url_params={
-                                           CustomUrlParam.EVALSCRIPT: bands_script,
                                            CustomUrlParam.SHOWLOGO: False},
                                        bbox=BBox(bbox=cloud_bbox, crs=CRS.WGS84),
                                        time=self.time_range,

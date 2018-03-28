@@ -31,10 +31,11 @@ def to_epsg3857(latlong_wgs84):
 
 class CloudSaturation:
     class MemoData:
-        def __init__(self, total_mask_w, true_color, bands, dates, cloud_masks):
+        def __init__(self, total_mask_w, true_color, bands, all_bands, dates, cloud_masks):
             self.total_mask_w = total_mask_w
             self.true_color = np.array(true_color)
             self.bands = np.array(bands)
+            self.all_bands = all_bands
             self.dates = np.array(dates)
             self.cloud_masks = np.array(cloud_masks)
 
@@ -97,10 +98,21 @@ class CloudSaturation:
                                        image_format=MimeType.TIFF_d32f,
                                        instance_id=self.instance_id)
 
-        return wms_true_color_request, wms_bands_request
+        wms_all_bands_request = WcsRequest(layer='ALL-BANDS',
+                                       data_folder=self.data_folder_name,
+                                       custom_url_params={
+                                           CustomUrlParam.SHOWLOGO: False},
+                                       bbox=BBox(bbox=self.bbox, crs=CRS.WGS84),
+                                       time=self.time_range,
+                                       resx=str(self.res_x) + "m",
+                                       resy=str(self.res_y) + "m",
+                                       image_format=MimeType.TIFF_d32f,
+                                       instance_id=self.instance_id)
+
+        return wms_true_color_request, wms_bands_request, wms_all_bands_request
 
     def load_data(self):
-        true_color_request, bands_request = self.create_requests()
+        true_color_request, bands_request, all_bands_request = self.create_requests()
 
         t_c_data = true_color_request.get_data(save_data=True,
                                                redownload=self.redownload)
@@ -108,7 +120,10 @@ class CloudSaturation:
         bands_data = bands_request.get_data(save_data=True,
                                             redownload=self.redownload)
         print("Saved bands")
-        return t_c_data, bands_data, true_color_request.get_dates()
+        all_bands_data = all_bands_request.get_data(save_data=True,
+                                                    redownload=self.redownload)
+        print("Saved bands")
+        return t_c_data, bands_data, all_bands_data, true_color_request.get_dates()
 
     @staticmethod
     def upscale_image(img, scale):
@@ -120,7 +135,7 @@ class CloudSaturation:
 
     def get_cloud_saturation_mask(self):
         cloud_detector = S2PixelCloudDetector(**self.cloud_detection_config)
-        true_color, bands, dates = self.load_data()
+        true_color, bands, all_bands, dates = self.load_data()
         print("Downloaded")
         cloud_masks_orig = cloud_detector.get_cloud_masks(np.array(bands))
         # upscale cloud masks
@@ -144,9 +159,9 @@ class CloudSaturation:
         total_mask_w = (full_cloud_mask / (
                 len(cloud_masks) - off_image_detection_mask)).astype(float)
 
-        self.memo_data = CloudSaturation.MemoData(total_mask_w, true_color, bands, dates, cloud_masks)
+        self.memo_data = CloudSaturation.MemoData(total_mask_w, true_color, bands, all_bands, dates, cloud_masks)
 
-        return total_mask_w, np.array(true_color), np.array(bands), np.array(
+        return total_mask_w, np.array(true_color), np.array(all_bands), np.array(
             dates), np.array(cloud_masks)
 
     def get_full_index_timeseries(self, index_id):

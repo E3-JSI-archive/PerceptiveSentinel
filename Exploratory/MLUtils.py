@@ -126,9 +126,11 @@ def train_test_classifier(X, Y,
     line_data, dimen = flatten_data(X)
     line_labels = flatten_labels(Y)
 
-    # Broken
-    normalizator = lambda x: x
-    """
+    # Split
+
+    (train, cv, test), (train_labels, cv_labels, test_labels) = \
+        split_train_test_data(line_data, line_labels, **config)
+    # train
     mean = np.mean(line_data, 0)
     var = np.var(line_data, 0)
     if config.get("normalize"):
@@ -137,15 +139,9 @@ def train_test_classifier(X, Y,
     else:
         def normalizator(x):
             return x
-    #print(line_data.shape)
-    #print(mean.shape)
-    """
 
-    # Split
-    #line_data = normalizator(line_data)
-    (train, cv, test), (train_labels, cv_labels, test_labels) = \
-        split_train_test_data(line_data, line_labels, **config)
-    # train
+    train = normalizator(train)
+
     classifier = classifier_method()
     clf = classifier.fit(train, train_labels)
 

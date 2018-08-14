@@ -1,7 +1,7 @@
 # Streamer class
 import os.path
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
@@ -97,6 +97,13 @@ class DataAcquirer:
         self.settings = settings or DataAcquisitionSettings(
             TULIP_FIELD_COORDINATES)
         self.split_num = split_num
+        self.data_dimensions = -1, -1, -1, -1
+        self.full_dates = []  # type: List[date]
+
+        self.acquire_finished = False
+
+        # Iteration data
+        self.iteration_index = -1
 
     def create_requests(self):
         # Get all bands
@@ -166,7 +173,7 @@ class DataAcquirer:
         for j in out:
             dates1.pop(j)
 
-        return all_bands, cloud_bands, all_bands_request.get_dates()
+        return all_bands, cloud_bands, dates1
 
     def resample_interpolate_save(self):
         os.makedirs(self.full_spline_data_folder_name, exist_ok=True)
@@ -183,6 +190,7 @@ class DataAcquirer:
         delta = (end_date - start_date).days
 
         h, w, d = eo_data[0].shape
+        self.data_dimensions = eo_data.shape
         assert d == 13
         print(eo_data.shape)
 
@@ -191,6 +199,8 @@ class DataAcquirer:
 
         x = np.arange(0, delta, 1)
         xx = x.reshape(-1, 1)
+
+        self.full_dates = np.arange(start_date, end_date)
 
         # full_data = np.zeros((delta, *eo_data[0].shape), dtype=float)
         spline_interpolants = np.zeros((w, h, d), dtype=object)
@@ -208,10 +218,10 @@ class DataAcquirer:
                     # Gaussian is quite slow
                     gp = GaussianProcessRegressor()
                     gp.fit(X=available2, y=eo_data[:, i, j, k])
-                    kriging_interpolants[i, j, k] = gp
+                    # kriging_interpolants[i, j, k] = gp
 
                     spline = UnivariateSpline(available, eo_data[:, i, j, k])
-                    spline_interpolants[i, j, k] = spline
+                    # spline_interpolants[i, j, k] = spline
 
                     line_spline[:, j, k] = spline(x)
                     line_kriging[:, j, k] = gp.predict(xx)
@@ -224,7 +234,6 @@ class DataAcquirer:
             print(time.time() - tt, ":", NUMBER_OF_INVOCATIONS, COLLECTED)
         print("Interpolation ended:", time.time() - t)
 
-        # np.save(self.full_data_folder_name, full_data)
         t = time.time()
         print("Saving spline:", end="", flush=True)
         np.save(self.spline_file_name, spline_interpolants)
@@ -237,17 +246,23 @@ class DataAcquirer:
         np.save(
             os.path.join(self.settings.stream_data_folder_name, self.name,
                          "dates"),
-            dates
+            self.full_dates
         )
 
         self.restructure_files(self.full_kriging_data_folder_name, h, w, delta)
         self.restructure_files(self.full_spline_data_folder_name, h, w, delta)
 
+        self.save_final_state()
+
     def get_data(self, recalculate: bool = False):
-        if recalculate:
+        if recalculate or not os.path.exists(self.final_file_name):
             self.resample_interpolate_save()
 
-        # return np.load(self.full_data_folder_name)
+        self.full_dates = np.load(
+            os.path.join(self.settings.stream_data_folder_name, self.name,
+                         "dates.npy")
+        )
+        self.acquire_finished = True
 
     @property
     def spline_file_name(self):
@@ -270,6 +285,15 @@ class DataAcquirer:
     @property
     def full_kriging_data_folder_name(self):
         return self.interpolated_data_folder_name("kriging")
+
+    @property
+    def final_file_name(self):
+        return os.path.join(self.settings.stream_data_folder_name, self.name,
+                            "final.txt")
+
+    def save_final_state(self):
+        today = datetime.today()
+        open(self.final_file_name, "w").write(str(today))
 
     def split_save_to_file(self, folder: str, line_num: int, data):
         split = self.split_num
@@ -304,14 +328,40 @@ class DataAcquirer:
             np.save(os.path.join(folder, "final-") + str(j), time_slice)
         print(time.time() - t)
 
+    def __iter__(self):
+        if not self.acquire_finished:
+            raise ValueError("First initialize data using: .get_data()")
+        # Reset
+        self.iteration_index = 0
+        return self
+
+    def __next__(self):
+        t, _, _, _ = self.data_dimensions
+        if self.iteration_index >= len(self.full_dates):
+            raise StopIteration
+
+        tmp = self.get_data_at_index(self.iteration_index,
+                                     self.full_spline_data_folder_name)
+        tmp_date = self.full_dates[self.iteration_index]
+        self.iteration_index += 1
+
+        return tmp_date, tmp
+
+    def get_data_at_index(self, index: int, folder: str):
+        assert self.acquire_finished
+        split = self.split_num
+        j = index // split
+        k = index % split
+        data = np.load(os.path.join(folder, "final-" + str(j) + ".npy"))
+        return data[k, :, :, :]
+
 
 class Streamer:
-    def __init__(self, name: str):
+    def __init__(self, name: str, repeat_time=None, settings = None):
         self.name = name
-        self.data_acquirer = DataAcquirer(self.name)
+        self.data_acquirer = DataAcquirer(self.name, settings=settings)
 
     def start(self):
-        return self.data_acquirer.load_eo_data()
-
-    def prepare(self):
-        self.data_acquirer.resample_interpolate_save()
+        self.data_acquirer.get_data()
+        for ind, (item_date, item) in enumerate(self.data_acquirer):
+            print(ind, item_date, np.sum(np.mean(item, axis=2)))

@@ -16,10 +16,15 @@ from sentinelhub import CustomUrlParam
 # Fuck it
 from typing import Tuple, Optional, List
 
+from kafka import KafkaProducer
+
+from JsonSerializer import encode
+
 INSTANCE_ID = "b1062c36-3d9a-4df5-ad3d-ab0d40ae3ca0"
 TULIP_FIELD_COORDINATES = 4.798278808593751, 52.95205098150524, 4.71038818359375, 52.89906593845727,
 
 # Hypothesis: time increases because of gc runs
+# REFUTED, see additional files and experiments (a high number of reallocations happen)
 # GC runs, because windows imparts a hard memory limit on python process, (although the python ins 64 bit)
 import gc
 
@@ -37,7 +42,8 @@ def minus(a, b):
     return b[0] - a[0], b[1] - a[1], b[2] - a[2]
 
 
-gc.callbacks.append(gc_callback)
+# For numpy testing
+# gc.callbacks.append(gc_callback)
 
 
 class CloudDetectionSettings:
@@ -357,11 +363,29 @@ class DataAcquirer:
 
 
 class Streamer:
-    def __init__(self, name: str, repeat_time=None, settings = None):
+    def __init__(self, name: str, kafka_config, topic_name="PerceptiveSentinel",
+                 flush=True, sleep_time=0, serializer=encode):
         self.name = name
-        self.data_acquirer = DataAcquirer(self.name, settings=settings)
+        self.data_acquirer = DataAcquirer(self.name)
+        self.kafka_producer = KafkaProducer(**kafka_config)
+        self.topic_name = topic_name
+        self.serializer = serializer
+        self.flush = flush
+        self.sleep_time = sleep_time if sleep_time > 0 else 0
 
     def start(self):
         self.data_acquirer.get_data()
         for ind, (item_date, item) in enumerate(self.data_acquirer):
-            print(ind, item_date, np.sum(np.mean(item, axis=2)))
+            print(ind, item_date, np.mean(item), np.std(item))
+            data = {
+                "date": item_date,
+                "data": [np.mean(item), np.std(item)]
+            }
+            data = self.serializer(data)
+            self.kafka_producer.send(
+                self.topic_name,
+                bytes(data, encoding="utf8")
+            )
+            if self.flush:
+                self.kafka_producer.flush()
+            time.sleep(self.sleep_time)

@@ -5,8 +5,10 @@ from Streamer import Streamer
 
 
 def main() -> None:
-    streamer = Streamer("netherlands")
-    streamer.prepare()
+    streamer = Streamer("netherlands-60m",
+                        {"bootstrap_servers": "192.168.99.100:9092"},
+                        topic_name="PerceptiveSentinel")
+    streamer.start()
 
 
 if __name__ == '__main__':

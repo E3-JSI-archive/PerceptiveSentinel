@@ -41,8 +41,9 @@ class CloudSaturation:
 
     def __init__(self,
                  coordinates,
-                 start_time='2014-12-01',
-                 end_time=datetime.datetime.now().strftime('%Y-%m-%d'),
+                 start_time='2016-01-01',
+                 #end_time=datetime.datetime.now().strftime('%Y-%m-%d'),
+                 end_time='2017-12-12',
                  data_folder_name="data/",
                  cloud_scale=6,
                  res=(10, 10),

@@ -207,7 +207,8 @@ class DataAcquirer:
         eo_data, cloud_data, dates1 = self.load_eo_data()
         eo_data = np.array(eo_data)
         dates = [j.date() for j in dates1]  # type: List[date]
-        # Discard cloud data for now
+
+        interpolate = self.settings.interpolate
 
         start_date = datetime.strptime(self.settings.start_date,
                                        "%Y-%m-%d").date()
@@ -242,19 +243,24 @@ class DataAcquirer:
                     current_pixel_data = eo_data[:, i, j, k]
                     masked_pixel_data = np.ma.masked_array(current_pixel_data,
                                                            cloud_data[:,i,j])
+                    if interpolate:
+                        # Gaussian is quite slow
+                        gp = GaussianProcessRegressor()
+                        gp.fit(X=available2, y=masked_pixel_data)
+                        # kriging_interpolants[i, j, k] = gp
 
-                    # Gaussian is quite slow
-                    gp = GaussianProcessRegressor()
-                    gp.fit(X=available2, y=masked_pixel_data)
-                    # kriging_interpolants[i, j, k] = gp
+                        spline = UnivariateSpline(available, masked_pixel_data,
+                                                  s=0)
+                        # spline_interpolants[i, j, k] = spline
 
-                    spline = UnivariateSpline(available, masked_pixel_data,
-                                              s=0)
-                    # spline_interpolants[i, j, k] = spline
-
-                    line_spline[:, j, k] = spline(x)
-                    line_kriging[:, j, k] = gp.predict(xx)
-                    # full_data[:, i, j, k] = spline(x)
+                        line_spline[:, j, k] = spline(x)
+                        line_kriging[:, j, k] = gp.predict(xx)
+                        # full_data[:, i, j, k] = spline(x)
+                    else:
+                        line_spline[:, j, k] = np.nan
+                        cur = np.ma.masked_array(available,
+                                                 masked_pixel_data.mask)
+                        line_spline[available[~cur.mask],j,k] = masked_pixel_data[~cur.mask]
 
             self.split_save_to_file(self.full_spline_data_folder_name, i,
                                     line_spline)

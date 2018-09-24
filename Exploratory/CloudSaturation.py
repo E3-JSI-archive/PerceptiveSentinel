@@ -120,7 +120,7 @@ class CloudSaturation:
         print("Saved True color")
         bands_data = bands_request.get_data(save_data=True,
                                             redownload=self.redownload)
-        print("Saved bands")
+        print("Saved cloud detection bands")
         all_bands_data = all_bands_request.get_data(save_data=True,
                                                     redownload=self.redownload)
         print("Saved bands")
@@ -134,24 +134,24 @@ class CloudSaturation:
     def get_image_mask(image):
         return (image == 255).all(axis=2)
 
-    def get_cloud_saturation_mask(self):
+    def get_cloud_saturation_mask(self, ignore_detection=False):
         cloud_detector = S2PixelCloudDetector(**self.cloud_detection_config)
         true_color, bands, all_bands, dates = self.load_data()
-        print("Downloaded")
-        cloud_masks_orig = cloud_detector.get_cloud_masks(np.array(bands))
-        # upscale cloud masks
-        cloud_masks = []
-        print(cloud_masks_orig[0].shape)
-        for i in range(len(cloud_masks_orig)):
-            cloud_masks.append(self.upscale_image(cloud_masks_orig[i], self.cloud_scale))
-        cloud_masks = np.array(cloud_masks)
-        print("Detected")
+        print("Downloaded data")
+        print("Detecting clouds, this may take some time...")
+        if True or not ignore_detection:
+            cloud_masks_orig = cloud_detector.get_cloud_masks(np.array(bands))
+            # upscale cloud masks
+            cloud_masks = []
+            for i in range(len(cloud_masks_orig)):
+                cloud_masks.append(self.upscale_image(cloud_masks_orig[i], self.cloud_scale))
+            cloud_masks = np.array(cloud_masks)
+        else:
+            cloud_masks = np.array(bands)*0
+        print("Cloud detection finished")
         # Images might be slightly out of scale, crop them
         x, y, _ = true_color[0].shape
-        print(cloud_masks.shape)
         cloud_masks = cloud_masks[:, -x:, :y]
-        print(cloud_masks.shape)
-        print(true_color[0].shape)
         off_image_detection_mask = sum(map(self.get_image_mask, true_color))
         # Just sum how many times we detect white pixels
 

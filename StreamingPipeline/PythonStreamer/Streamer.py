@@ -2,7 +2,7 @@
 import os.path
 import time
 from datetime import date, datetime, timedelta
-
+import numpy.ma
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -18,35 +18,21 @@ from typing import Tuple, Optional, List
 
 from kafka import KafkaProducer
 
-from JsonSerializer import encode
+from .JsonSerializer import encode
 
 INSTANCE_ID = "b1062c36-3d9a-4df5-ad3d-ab0d40ae3ca0"
 TULIP_FIELD_COORDINATES = 4.798278808593751, 52.95205098150524, 4.71038818359375, 52.89906593845727,
 
-# Hypothesis: time increases because of gc runs
-# REFUTED, see additional files and experiments (a high number of reallocations happen)
-# GC runs, because windows imparts a hard memory limit on python process, (although the python ins 64 bit)
-import gc
-
-NUMBER_OF_INVOCATIONS = [0, 0, 0]
-COLLECTED = [0, 0, 0]
-
-
-def gc_callback(phase, info):
-    if phase == "stop":
-        NUMBER_OF_INVOCATIONS[info["generation"]] += 1
-        COLLECTED[info["generation"]] += info["collected"]
-
-
-def minus(a, b):
-    return b[0] - a[0], b[1] - a[1], b[2] - a[2]
-
-
-# For numpy testing
-# gc.callbacks.append(gc_callback)
-
 
 class CloudDetectionSettings:
+    """
+    Settings for Cloud detection using Sinergise cloudless library,
+    x_scale and y_scale are used for rescaling
+    (detecting clouds on same image takes A LOT of time),
+    so it is best to rescale it before
+    other arguments are directly forwarded to cloud detector
+    """
+
     def __init__(self,
                  threshold: float = 0.4,
                  average_over: int = 4,
@@ -65,6 +51,11 @@ DEFAULT_CLOUD_DETECTION_SETTINGS = CloudDetectionSettings()
 
 
 class DataAcquisitionSettings:
+    """
+    Main settings class
+    This class customizes data acquisition and it's saving
+    """
+
     def __init__(self,
                  coordinates: Tuple[float, float, float, float],
                  *,
@@ -96,9 +87,20 @@ class DataAcquisitionSettings:
 
 
 class DataAcquirer:
+    """
+    Main data acquisiton class
+    """
+
     def __init__(self, name: str,
                  settings: Optional[DataAcquisitionSettings] = None,
                  split_num: int = 50):
+        """
+        Constructs class and prepares everything for usage
+        :param name: name to be used for saving data on disk
+        :param settings: settings class for data acquisition
+        :type settings: DataAcquisitionSettings
+        :param split_num:
+        """
         self.name = name
         self.settings = settings or DataAcquisitionSettings(
             TULIP_FIELD_COORDINATES)
@@ -212,7 +214,6 @@ class DataAcquirer:
         spline_interpolants = np.zeros((w, h, d), dtype=object)
         kriging_interpolants = np.zeros((w, h, d), dtype=object)
 
-        print("interpolating", NUMBER_OF_INVOCATIONS, COLLECTED)
         t = time.time()
         for i in range(h):
             print("Line:", i, end=" ", flush=True)
@@ -221,12 +222,17 @@ class DataAcquirer:
             line_kriging = np.zeros((delta, h, d), dtype=float)
             for j in range(w):
                 for k in range(d):
+                    current_pixel_data = eo_data[:, i, j, k]
+                    masked_pixel_data = np.ma.masked_array(current_pixel_data,
+                                                           cloud_data[:,i,j])
+
                     # Gaussian is quite slow
                     gp = GaussianProcessRegressor()
-                    gp.fit(X=available2, y=eo_data[:, i, j, k])
+                    gp.fit(X=available2, y=masked_pixel_data)
                     # kriging_interpolants[i, j, k] = gp
 
-                    spline = UnivariateSpline(available, eo_data[:, i, j, k])
+                    spline = UnivariateSpline(available, masked_pixel_data,
+                                              s=0)
                     # spline_interpolants[i, j, k] = spline
 
                     line_spline[:, j, k] = spline(x)
@@ -237,7 +243,7 @@ class DataAcquirer:
                                     line_spline)
             self.split_save_to_file(self.full_kriging_data_folder_name, i,
                                     line_kriging)
-            print(time.time() - tt, ":", NUMBER_OF_INVOCATIONS, COLLECTED)
+            print(time.time() - tt)
         print("Interpolation ended:", time.time() - t)
 
         t = time.time()
@@ -363,10 +369,25 @@ class DataAcquirer:
 
 
 class Streamer:
+    """
+    Main Streamer class
+
+    """
+
     def __init__(self, name: str, kafka_config, topic_name="PerceptiveSentinel",
-                 flush=True, sleep_time=0, serializer=encode):
+                 flush=True, sleep_time=0, serializer=encode,
+                 daq_settings=None):
+        """
+
+        :param name: name used in DataAcquirer to
+        :param kafka_config: kafka configuration -> forwarded to kafka client
+        :param topic_name: name of kafka topic to send to
+        :param flush: flush after each send
+        :param sleep_time: time between two days
+        :param serializer: serializer to use for serialization
+        """
         self.name = name
-        self.data_acquirer = DataAcquirer(self.name)
+        self.data_acquirer = DataAcquirer(self.name, **(daq_settings or {}))
         self.kafka_producer = KafkaProducer(**kafka_config)
         self.topic_name = topic_name
         self.serializer = serializer
@@ -379,7 +400,8 @@ class Streamer:
             print(ind, item_date, np.mean(item), np.std(item))
             data = {
                 "date": item_date,
-                "data": [np.mean(item), np.std(item)]
+                "data": [np.mean(item), np.std(item)],
+                "full_data": item,
             }
             data = self.serializer(data)
             self.kafka_producer.send(
@@ -389,3 +411,4 @@ class Streamer:
             if self.flush:
                 self.kafka_producer.flush()
             time.sleep(self.sleep_time)
+        self.kafka_producer.flush()

@@ -4,6 +4,7 @@ import time
 from datetime import date, datetime, timedelta
 import numpy.ma
 import numpy as np
+from s2cloudless import S2PixelCloudDetector
 from scipy.interpolate import UnivariateSpline
 from sklearn.gaussian_process import GaussianProcessRegressor
 
@@ -18,7 +19,7 @@ from typing import Tuple, Optional, List
 
 from kafka import KafkaProducer
 
-from .JsonSerializer import encode
+from JsonSerializer import encode
 
 INSTANCE_ID = "b1062c36-3d9a-4df5-ad3d-ab0d40ae3ca0"
 TULIP_FIELD_COORDINATES = 4.798278808593751, 52.95205098150524, 4.71038818359375, 52.89906593845727,
@@ -59,6 +60,7 @@ class DataAcquisitionSettings:
     def __init__(self,
                  coordinates: Tuple[float, float, float, float],
                  *,
+                 interpolate: bool = True,
                  data_folder_name: str = "data/",
                  stream_data_folder_name: str = os.path.join("stream_data"),
                  start_date: str = "2017-01-01",
@@ -69,6 +71,7 @@ class DataAcquisitionSettings:
                  cloud_detection_settings:
                  Optional[CloudDetectionSettings] = None
                  ):
+        self.interpolate = interpolate
         self.coordinates = coordinates
         self.bbox = BBox(self.coordinates, crs=CRS.WGS84)
         self.data_folder_name = data_folder_name
@@ -153,6 +156,10 @@ class DataAcquirer:
 
         return all_bands_request, cloud_bands_request
 
+    @staticmethod
+    def upscale_image(img, scale):
+        return np.kron(img, np.ones((scale, scale)))
+
     def load_eo_data(self):
         all_bands_request, cloud_bands_request = self.create_requests()
 
@@ -177,11 +184,21 @@ class DataAcquirer:
                 out.append(j)
 
         all_bands = np.delete(all_bands, out, 0)
-        cloud_bands = np.delete(cloud_bands, out, 0)
+        cloud_detector = S2PixelCloudDetector(average_over=self.settings.cloud_detection_settings.average_over,
+                                              dilation_size=self.settings.cloud_detection_settings.dilation_size,
+                                              threshold=self.settings.cloud_detection_settings.threshold,
+                                              all_bands=True)
+        cloud_masks_orig = cloud_detector.get_cloud_masks(np.array(all_bands))
+        # upscale cloud masks
+        cloud_masks = []
+        for i in range(len(cloud_masks_orig)):
+            cloud_masks.append(self.upscale_image(cloud_masks_orig[i], self.settings.cloud_detection_settings.x_scale))
+        cloud_masks = np.array(cloud_masks)
+
         for j in out:
             dates1.pop(j)
 
-        return all_bands, cloud_bands, dates1
+        return all_bands, cloud_masks, dates1
 
     def resample_interpolate_save(self):
         os.makedirs(self.full_spline_data_folder_name, exist_ok=True)
@@ -387,7 +404,10 @@ class Streamer:
         :param serializer: serializer to use for serialization
         """
         self.name = name
-        self.data_acquirer = DataAcquirer(self.name, **(daq_settings or {}))
+        self.data_acquirer = DataAcquirer(
+            self.name,
+            DataAcquisitionSettings(**(daq_settings or {}))
+        )
         self.kafka_producer = KafkaProducer(**kafka_config)
         self.topic_name = topic_name
         self.serializer = serializer

@@ -1,6 +1,5 @@
 // EOQMiner, (c) Jozef Stefan Institute, 2018 - 2019
 
-
 // STDIN API multiplexer
 // TODO:
 process.stdin.on('readable', () => {

@@ -36,4 +36,7 @@ class QMinerBridge:
             return
 
     def stopQMiner(self):
+        """
+        Closing QMiner instance.
+        """
         self.popen.terminate()

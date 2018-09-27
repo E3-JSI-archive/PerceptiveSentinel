@@ -1,34 +1,28 @@
 # testing connectivity Python - Node
+# imports
 import subprocess
-import threading
 import time
 
-can_break = False
-
+# prepare subprocess
 args = ['node', 'simple-echo.js']
+popen = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
-DETACHED_PROCESS = 0x00000008
-
-
-popen = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stdin=subprocess.PIPE) # , creationflags=DETACHED_PROCESS
-
-#popen = subprocess.Popen(args, shell=True) # , creationflags=DETACHED_PROCESS
-
+# initialize the counter
 i = 0
 
-
+# main loop
 try:    
     while True:        
+        # send next message
         i = i + 1
-        #print('%i Main thread ...' % i)
-        msg = "%dtest\n" % i
+        msg = "test %d\n" % i
         popen.stdin.write(msg.encode('utf-8'))
+        # it is important to make the flush (otherwise nothing is received in NodeJS)
         popen.stdin.flush()
         try:
             print(popen.stdout.readline())
         except:
-            print("No data %d" % i)            
-
+            print("No data - iteration %d" % i)            
         time.sleep(1)
 except KeyboardInterrupt:
     can_break = True

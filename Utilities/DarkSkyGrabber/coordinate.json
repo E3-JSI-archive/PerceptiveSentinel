@@ -9,5 +9,15 @@
 "Den_Helder":{
     "latitude": "52.9519517",
     "longitude": "4.7744858"
+},
+"Medemblik":{
+    "latitude": "52.779012",
+    "longitude": "5.100300"
+},
+"Amsterdam":{
+    "latitude": "52.356392",
+    "longitude": "4.883283"
+
 }
+
 }

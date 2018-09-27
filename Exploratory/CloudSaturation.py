@@ -41,9 +41,9 @@ class CloudSaturation:
 
     def __init__(self,
                  coordinates,
-                 start_time='2016-01-01',
+                 start_time='2016-05-10',
                  #end_time=datetime.datetime.now().strftime('%Y-%m-%d'),
-                 end_time='2017-12-12',
+                 end_time='2016-05-12',
                  data_folder_name="data/",
                  cloud_scale=6,
                  res=(10, 10),
@@ -124,8 +124,23 @@ class CloudSaturation:
         all_bands_data = all_bands_request.get_data(save_data=True,
                                                     redownload=self.redownload)
         print("Saved bands")
+        
+        #added by Matej so get_tulip_mask() works without get_cloud_saturation_mask()
+        self.memo_data = CloudSaturation.MemoData(np.zeros(1), t_c_data, bands_data, all_bands_data,
+                                                  true_color_request.get_dates(), np.zeros(1))
+        
         return t_c_data, bands_data, all_bands_data, true_color_request.get_dates()
 
+    def load_tc(self):
+        true_color_request, bands_request, all_bands_request = self.create_requests()
+        t_c_data = true_color_request.get_data(save_data=True,
+                                               redownload=self.redownload)
+        print ('True color')
+        self.memo_data = CloudSaturation.MemoData(np.zeros(1), t_c_data, np.zeros(1), np.zeros(1),
+                                                  true_color_request.get_dates(), np.zeros(1))
+        
+        return t_c_data, true_color_request.get_dates()
+        
     @staticmethod
     def upscale_image(img, scale):
         return np.kron(img, np.ones((scale, scale)))

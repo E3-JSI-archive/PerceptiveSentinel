@@ -2,9 +2,9 @@ const readline = require('readline');
 const fs = require('fs');
 
 
-var place = 'Grad_Jablje' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder'
+var place = 'Medemblik' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder', 'Medemblik'
 const rl = readline.createInterface({
-  input: fs.createReadStream('data\\data_' + place + '.json'),
+  input: fs.createReadStream('DarkSkyGrabber\\data\\data_' + place + '.json'),
   crlfDelay: Infinity
 });
 
@@ -14,5 +14,5 @@ rl.on('line', (line) => {
   //console.log(`${line}`);
   array_of_data.push(JSON.parse(line).daily.data[0])
   //console.log(array_of_data)
-  fs.writeFileSync("data\\data_" + place + "_array.json",JSON.stringify(array_of_data));
+  fs.writeFileSync("DarkSkyGrabber\\data\\data_" + place + "_array.json",JSON.stringify(array_of_data));
 });

@@ -32,7 +32,7 @@ def split_train_test_data(X, Y, train_p=0.5, cv_p=0.5, shuffle=None, state=None,
                           **kwargs):
     if shuffle is 0:
         print("Probably not what you want")
-    train, test, train_labels, test_labels = train_test_split(X, Y,
+    train, test, train_labels, test_labels = s(X, Y,
                                                               train_size=train_p,
                                                               shuffle=shuffle,
                                                               random_state=state)
@@ -179,3 +179,26 @@ def train_test_classifier(X, Y,
 
 def find_closest_date(dates, date):
     return bisect.bisect(dates, date)
+def find_index_after_date(dates, date):
+    return bisect.bisect(dates, date)
+
+class Reshaper:
+
+    def __init__(self, data_shape):
+        self.data_shape = data_shape
+        full_sz = 1
+        for j in self.data_shape[:-1]:
+            full_sz *= j
+        self.full_size = full_sz
+
+    def revert_data_shape(self, data):
+        return data.reshape(self.data_shape)
+
+    def revert_labels_shape(self, labels):
+        return labels.reshape(self.data_shape[:-1])
+
+    def flatten_data(self, data):
+        return data.reshape(self.full_size, self.data_shape[-1])
+
+    def flatten_labels(self, labels):
+        return labels.flatten()

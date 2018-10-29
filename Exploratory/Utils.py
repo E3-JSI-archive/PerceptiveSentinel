@@ -8,6 +8,8 @@ from DataRequest.DataRequest import TulipFieldRequest
 
 # If major edits are in order, just create new WMS instance (dont forget to update instanceid)
 
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
 
 def plot_cloud_mask(mask, figsize=(15, 15), cmap="gray", normalize=False,
                     plot_cmap=False, cmap_frac=0):
@@ -32,17 +34,19 @@ def plot_cloud_mask(mask, figsize=(15, 15), cmap="gray", normalize=False,
     # Todo: plot nice cmap
 
 
-def plot_image(data, factor=1. / 255, cmap=None):
+def plot_image(data, factor=1. / 255, cmap=None, figsize=(15,7)):
     """
     Utility function for plotting RGB images. The numpy arrays returned by the WMS and WCS requests have channels
     ordered as Blue (`B02`), Green (`B03`), and Red (`B04`) therefore the order has to be reversed before ploting
     the image.
     """
-    fig = plt.subplots(nrows=1, ncols=1, figsize=(15, 7))
+    fig = plt.subplots(nrows=1, ncols=1, figsize=figsize)
     rgb = data.astype(np.float32)
     if len(rgb.shape) == 3 and rgb.shape[2] == 3:
         rgb = rgb[..., [2, 1, 0]]
-    plt.imshow(rgb * factor, cmap=cmap)
+
+    img = rgb*factor
+    plt.imshow(img, cmap=cmap)
 
 
 def plot_timeseries(data, factor=1. / 255, cmap="gray"):
@@ -53,9 +57,9 @@ def plot_timeseries(data, factor=1. / 255, cmap="gray"):
     return plot_image(np.array([data]), cmap=cmap)
 
 
-def plot_timeseries_line(data, vis, spec="ro", new=True, datesp=None):
+def plot_timeseries_line(data, vis, spec="ro", new=True, datesp=None,figsize=(15,15),flatten=True, **kwargs):
     if new:
-        fig = plt.subplots(nrows=1, ncols=1, figsize=(15, 7))
+        fig = plt.subplots(nrows=1, ncols=1, figsize=figsize)
         if datesp is not None:
             def ext_month(a):
                 return f"{a.day}.{a.month}.{a.year}"
@@ -64,7 +68,10 @@ def plot_timeseries_line(data, vis, spec="ro", new=True, datesp=None):
             k = 10
             filt = np.arange(0, len(datesp), k)
             plt.xticks(filt, xt[0::k])
-    plt.plot(vis[0], data[vis], spec)
+    if flatten and len(data.shape) > 1:
+        plt.plot(vis[0], rgb2gray(data)[vis], spec, **kwargs)
+    else:
+        plt.plot(vis[0], data[vis], spec, **kwargs)
 
 
 def get_timeseries_delete(mask, true_c, bands, dates, cloud_masks, x_ind, y_ind,

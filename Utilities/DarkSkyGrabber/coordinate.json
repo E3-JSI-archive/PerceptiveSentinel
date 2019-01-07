@@ -17,7 +17,17 @@
 "Amsterdam":{
     "latitude": "52.356392",
     "longitude": "4.883283"
-
+},
+"Emmeloord":{
+    "latitude": "52.716107",
+    "longitude": "5.749478"
+},
+"Noordwijkerhout":{
+    "latitude": "52.249439",
+    "longitude": "4.480761"
+},
+"Dirksland":{
+    "latitude": "51.748443",
+    "longitude": "4.116795"
 }
-
 }

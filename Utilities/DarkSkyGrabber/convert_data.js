@@ -2,7 +2,7 @@ const readline = require('readline');
 const fs = require('fs');
 
 
-var place = 'Medemblik' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder', 'Medemblik'
+var place = 'Noordwijkerhout' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder', 'Medemblik'
 const rl = readline.createInterface({
   input: fs.createReadStream('DarkSkyGrabber\\data\\data_' + place + '.json'),
   crlfDelay: Infinity

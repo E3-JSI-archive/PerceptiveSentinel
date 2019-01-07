@@ -7,7 +7,7 @@ const fs = require('fs');
 const config = jsonfile.readFileSync('DarkSkyGrabber\\config.json');
 
 const coordinate = jsonfile.readFileSync('DarkSkyGrabber\\coordinate.json');
-var place = 'Den_Helder' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder' or 'Medemblik'
+var place = 'Noordwijkerhout' // 'Grad_Jablje' or 'Aarhus' or 'Den_Helder' or 'Medemblik' or see in 'coordinte.json'
 
 // setting up environmental variables regarding time
 process.env.TZ = 'Europe/Ljubljana'
@@ -16,6 +16,7 @@ let a = new Date("Fri Jan 1 2016 00:00:00 GMT+0100(CET)");
 let timeStamp = Math.floor(a.getTime()/1000);      
 console.log(timeStamp);
 console.log(process.env.TZ)
+//let timeStampNOW = new Date("Sun Jan 1 2017 00:00:00 GMT+0100(CET)");
 let timeStampNOW = Math.floor((Date.now()+7200000)/1000);
 
 // if it exists, read the last written timestamp
@@ -34,7 +35,7 @@ console.log(timeStampNOW)
 //console.log(timeStamp)
 
 // starting the loop
-let latitude = coordinate[place].latitude;
+let lat = coordinate[place].lat;
 let longitude = coordinate[place].longitude;
 let token = config["darkSky-token"];
 
@@ -44,7 +45,7 @@ while (timeStamp <= timeStampNOW) {
     console.log(date);    
 
     var url = "https://api.darksky.net/forecast/" + token + "/" + 
-    latitude +"," + 
+    lat +"," + 
     longitude + "," + 
     timeStamp + 
     '?exclude=currently,minutely,hourly,alerts,flags'+ //only daily

@@ -18,7 +18,7 @@ In `coordintae.json` are coordinates of city (name of city that is created in th
 Example:
 ```
 "{Grad_Jablje":{
-    "latitude": "46.141850",
+    "lat": "46.141850",
     "longitude": "14.553334"},
 {...}
 }

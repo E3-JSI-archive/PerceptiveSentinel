@@ -89,4 +89,4 @@ def download_patches(shp, bbox_list):
 
 if __name__ == '__main__':
     gdf, bbox_list = generate_slo_shapefile()
-    download_patches(gdf, bbox_list[0:2])
+    download_patches(gdf, bbox_list)

@@ -72,7 +72,7 @@ def download_patches(shp, bbox_list):
     time_interval = ['2017-01-01', '2017-12-31']  # time interval for the SH request
 
     execution_args = []
-    for idx, bbox in enumerate(bbox_list[0:3]):
+    for idx, bbox in enumerate(bbox_list):
         execution_args.append({
             add_data: {'bbox': bbox, 'time_interval': time_interval},
             save: {'eopatch_folder': 'eopatch_{}'.format(idx)}

@@ -4,10 +4,11 @@ import numpy as np
 import geopandas as gpd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from eolearn.io import S2L1CWCSInput,S2L1CWMSInput
+from eolearn.io import S2L1CWCSInput, S2L1CWMSInput
 from shapely.geometry import Polygon
 import os
 from sentinelhub import BBoxSplitter, BBox, CRS, CustomUrlParam
+import datetime as dt
 import time
 
 
@@ -28,12 +29,12 @@ def generate_slo_shapefile(path):
     plt.axis('off');
 
     # Create the splitter to obtain a list of bboxes
-    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25*2, 17*2))
+    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 2, 17 * 2))
 
     bbox_list = np.array(bbox_splitter.get_bbox_list())
     info_list = np.array(bbox_splitter.get_info_list())
 
-    path_out = path+'/shapefiles'
+    path_out = path + '/shapefiles'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
 
@@ -51,7 +52,7 @@ def generate_slo_shapefile(path):
     return gdf, bbox_list
 
 
-def download_patches(shp, bbox_list):
+def download_patches(path, shp, bbox_list):
     add_data = S2L1CWCSInput(
         layer='BANDS-S2-L1C',
         feature=(FeatureType.DATA, 'BANDS'),  # save under name 'BANDS'
@@ -59,7 +60,7 @@ def download_patches(shp, bbox_list):
         resy='10m',  # resolution y
         maxcc=0.8,  # maximum allowed cloud cover of original ESA tiles
     )
-    path_out = path+'/Slovenija/'
+    path_out = path + '/Slovenija/'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
     save = SaveToDisk(path_out, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
@@ -80,14 +81,14 @@ def download_patches(shp, bbox_list):
     start_time = time.time()
     executor = EOExecutor(workflow, execution_args, save_logs=True)
     executor.run(workers=1, multiprocess=False)
-    file = open('timing.txt', 'w')
-    running = 'Running time: {}'.format(time.time() - start_time)
+    file = open('timing.txt', 'a')
+    running = str(dt.datetime.now()) + 'Running time: {}'.format(time.time() - start_time)
     print(running)
     file.write(running)
     file.close()
 
 
 if __name__ == '__main__':
-    path = '/home/beno/Documents/test'
+    path = 'E:/Data/PerceptiveSentinel'
     gdf, bbox_list = generate_slo_shapefile(path)
-    download_patches(path, gdf, bbox_list[0:10])
+    download_patches(path, gdf, bbox_list)

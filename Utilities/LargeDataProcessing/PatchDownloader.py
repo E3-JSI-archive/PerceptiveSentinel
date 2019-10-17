@@ -4,14 +4,14 @@ import numpy as np
 import geopandas as gpd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from eolearn.io import S2L1CWCSInput
+from eolearn.io import S2L1CWCSInput,S2L1CWMSInput
 from shapely.geometry import Polygon
 import os
 from sentinelhub import BBoxSplitter, BBox, CRS, CustomUrlParam
 import time
 
 
-def generate_slo_shapefile():
+def generate_slo_shapefile(path):
     DATA_FOLDER = os.path.join('data')
 
     area = gpd.read_file(os.path.join(DATA_FOLDER, 'svn_buffered.geojson'))
@@ -28,12 +28,12 @@ def generate_slo_shapefile():
     plt.axis('off');
 
     # Create the splitter to obtain a list of bboxes
-    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25, 17))
+    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25*2, 17*2))
 
     bbox_list = np.array(bbox_splitter.get_bbox_list())
     info_list = np.array(bbox_splitter.get_info_list())
 
-    path_out = 'shapefiles'
+    path_out = path+'/shapefiles'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
 
@@ -59,7 +59,7 @@ def download_patches(shp, bbox_list):
         resy='10m',  # resolution y
         maxcc=0.8,  # maximum allowed cloud cover of original ESA tiles
     )
-    path_out = './slovenia/'
+    path_out = path+'/Slovenija/'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
     save = SaveToDisk(path_out, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
@@ -79,7 +79,7 @@ def download_patches(shp, bbox_list):
         })
     start_time = time.time()
     executor = EOExecutor(workflow, execution_args, save_logs=True)
-    executor.run(workers=None, multiprocess=True)
+    executor.run(workers=1, multiprocess=False)
     file = open('timing.txt', 'w')
     running = 'Running time: {}'.format(time.time() - start_time)
     print(running)
@@ -88,5 +88,6 @@ def download_patches(shp, bbox_list):
 
 
 if __name__ == '__main__':
-    gdf, bbox_list = generate_slo_shapefile()
-    download_patches(gdf, bbox_list)
+    path = '/home/beno/Documents/test'
+    gdf, bbox_list = generate_slo_shapefile(path)
+    download_patches(path, gdf, bbox_list[0:10])

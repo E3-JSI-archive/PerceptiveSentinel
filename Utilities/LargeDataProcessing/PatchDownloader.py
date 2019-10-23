@@ -82,13 +82,14 @@ def download_patches(path, shp, bbox_list):
     executor = EOExecutor(workflow, execution_args, save_logs=True)
     executor.run(workers=1, multiprocess=False)
     file = open('timing.txt', 'a')
-    running = str(dt.datetime.now()) + 'Running time: {}'.format(time.time() - start_time)
+    running = str(dt.datetime.now()) + ' Running time: {}\n'.format(time.time() - start_time)
     print(running)
     file.write(running)
     file.close()
 
 
 if __name__ == '__main__':
-    path = 'E:/Data/PerceptiveSentinel'
+    # path = 'E:/Data/PerceptiveSentinel'
+    path = '/home/beno/Documents/test'
     gdf, bbox_list = generate_slo_shapefile(path)
     download_patches(path, gdf, bbox_list)

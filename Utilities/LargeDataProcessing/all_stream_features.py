@@ -101,7 +101,7 @@ class AddBaseFeatures(EOTask):
 
         ndvi = np.clip((nir - red) / (nir + red + 0.000000001), -1, 1)
         eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
-        ndvi_slope = temporal_derivative(ndvi)
+        ndvi_slope = temporal_derivative(ndvi.squeeze())
         eopatch.add_feature(FeatureType.DATA, 'NDVI_SLOPE', ndvi_slope[..., np.newaxis])  # ASSUMES EVENLY SPACED
 
         band_a = eopatch.data['BANDS'][..., 1]
@@ -188,9 +188,12 @@ if __name__ == '__main__':
         addStreamNDWI,
         # allValid('IS_VALID'),
         # *land_cover_task_array,
-        printPatch(),
+        #printPatch(),
         save
     )
+
+    #workflow.execute(execution_args[0])
+
     start_time = time.time()
     # runs workflow for each set of arguments in list
     executor = EOExecutor(workflow, execution_args, save_logs=True)

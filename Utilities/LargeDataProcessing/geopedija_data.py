@@ -229,8 +229,8 @@ def load_LPIS(country, year, path, no_patches):
 
 
 if __name__ == '__main__':
-    # path = 'E:/Data/PerceptiveSentinel'
-    path = '/home/beno/Documents/test'
+    path = 'E:/Data/PerceptiveSentinel'
+    # path = '/home/beno/Documents/test'
     # no_patches = 1
     no_patches = 1061
     country = 'Slovenia'

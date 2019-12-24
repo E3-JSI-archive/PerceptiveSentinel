@@ -83,6 +83,7 @@ class AddGroup(EOTask):
 
 
 class AddGroup2(EOTask):
+    # Ta task je za groupanje po rasterizu
     def __init__(self, dictionary, name_of_feature='LPIS_2017', feature_type=FeatureType.DATA_TIMELESS):
         self.dictionary = dictionary
         self.name_of_feature = name_of_feature
@@ -198,12 +199,13 @@ def load_LPIS(country, year, path, no_patches):
     remove_dtf = RemoveFeature(FeatureType.VECTOR_TIMELESS, name_of_feature)
 
     exclude = WorkflowExclude(area_ratio, fixlpis, add_group, rasterize,
-                              remove_dtf, save)
+                              remove_dtf)
 
     workflow = LinearWorkflow(
         load,
         add_lpis,
         exclude,
+        save
     )
 
     execution_args = []

@@ -15,7 +15,8 @@ import time
 def generate_slo_shapefile(path):
     DATA_FOLDER = os.path.join('data')
 
-    area = gpd.read_file(os.path.join(DATA_FOLDER, 'svn_buffered.geojson'))
+    #area = gpd.read_file(os.path.join(DATA_FOLDER, 'svn_buffered.geojson'))
+    area = gpd.read_file(os.path.join(DATA_FOLDER, 'austria.geojson'))
 
     # Convert CRS to UTM_33N
     country_crs = CRS.UTM_33N
@@ -29,7 +30,7 @@ def generate_slo_shapefile(path):
     plt.axis('off');
 
     # Create the splitter to obtain a list of bboxes
-    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 2, 17 * 2))
+    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 3, 10 * 3))
 
     bbox_list = np.array(bbox_splitter.get_bbox_list())
     info_list = np.array(bbox_splitter.get_info_list())
@@ -46,7 +47,7 @@ def generate_slo_shapefile(path):
                            crs={'init': CRS.ogc_string(country_crs)},
                            geometry=geometry)
 
-    shapefile_name = path_out + '/slovenia.shp'
+    shapefile_name = path_out + '/austria.shp'
     gdf.to_file(shapefile_name)
 
     return gdf, bbox_list
@@ -60,7 +61,7 @@ def download_patches(path, shp, bbox_list):
         resy='10m',  # resolution y
         maxcc=0.8,  # maximum allowed cloud cover of original ESA tiles
     )
-    path_out = path + '/Slovenija/'
+    path_out = path + '/Austria/'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
     save = SaveToDisk(path_out, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
@@ -92,4 +93,4 @@ if __name__ == '__main__':
     # path = 'E:/Data/PerceptiveSentinel'
     path = '/home/beno/Documents/test'
     gdf, bbox_list = generate_slo_shapefile(path)
-    download_patches(path, gdf, bbox_list)
+    download_patches(path, gdf, bbox_list[500:510])

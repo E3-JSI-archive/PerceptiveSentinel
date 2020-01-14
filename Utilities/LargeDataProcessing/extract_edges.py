@@ -105,6 +105,7 @@ class ExtractEdgesTask(EOTask):
         eopatch.add_feature(FeatureType.MASK_TIMELESS, self.output_feature[1], edge_vector[..., np.newaxis])
         return eopatch
 
+# Example
 if __name__=='__main__':
 
     b_low = 10

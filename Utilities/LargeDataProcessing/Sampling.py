@@ -47,9 +47,11 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
         subsample_id = random.sample(subsample_id, no_samples)
 
         for h, w in subsample_id:
-            class_value = float(eopatch[class_feature[0]][class_feature[1]][h][w])
-            if np.isnan(class_value):
-                class_value = float(-1)
+            class_value = float(-1)
+            if class_feature in eopatch.get_feature_list():
+                val = float(eopatch[class_feature[0]][class_feature[1]][h][w])
+                if not np.isnan(val):
+                    class_value = val
 
             array_for_dict = [(class_name, class_value)] + [(f[1], float(eopatch[f[0]][f[1]][h][w])) for f in features]
             if debug:
@@ -76,7 +78,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
 
 # Example of usage
 if __name__ == '__main__':
-    # patches_path = 'E:/Data/PerceptiveSentinel'
+    # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
     patches_path = '/home/beno/Documents/test/Slovenia'
     samples = sample_patches(path=patches_path,
                              no_patches=3,

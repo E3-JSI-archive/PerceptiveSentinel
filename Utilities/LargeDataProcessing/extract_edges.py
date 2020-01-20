@@ -7,7 +7,6 @@ from scipy.ndimage.measurements import label
 import os
 
 
-
 class ExtractEdgesTask(EOTask):
 
     def __init__(self,
@@ -105,8 +104,9 @@ class ExtractEdgesTask(EOTask):
         eopatch.add_feature(FeatureType.MASK_TIMELESS, self.output_feature[1], edge_vector[..., np.newaxis])
         return eopatch
 
+
 # Example
-if __name__=='__main__':
+if __name__ == '__main__':
 
     b_low = 10
     b_high = 40
@@ -177,7 +177,7 @@ if __name__=='__main__':
     # path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
-    load = LoadFromDisk(patch_location)
+    load = LoadFromDisk(patch_location, lazy_loading=True)
 
     save_path_location = path + '/Slovenia/'
     if not os.path.isdir(save_path_location):
@@ -198,8 +198,8 @@ if __name__=='__main__':
         save
     )
 
-    executor = EOExecutor(workflow, execution_args, save_logs=True)
+    executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
     # here you choose how many processes/threads you will run, workers=none is max of processors
     executor.run(workers=None, multiprocess=False)
 
-    #display()
+    # display()

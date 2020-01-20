@@ -1,15 +1,5 @@
-from eolearn.core import EOTask, EOPatch, LinearWorkflow, FeatureType, OverwritePermission, \
-    LoadFromDisk, SaveToDisk, EOExecutor
+from eolearn.core import EOPatch, FeatureType
 import numpy as np
-import geopandas as gpd
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from eolearn.io import S2L1CWCSInput, S2L1CWMSInput
-from shapely.geometry import Polygon
-import os
-from sentinelhub import BBoxSplitter, BBox, CRS, CustomUrlParam
-import datetime as dt
-import time
 from sklearn.utils import resample
 import random
 import pandas as pd
@@ -18,19 +8,25 @@ import collections
 
 def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, features, samples_per_class=None,
                    debug=False):
-    '''
-    :param path: Path to patch folder
-    :param no_patches: total number of patches. Each has to be in its own folder named eopatch_{number}
-    :param no_samples: Number of samples per patch
-    :param class_feature: name of feature that contains class number and nan for no class
-    :param mask_feature: feature that masks area from sampling (like edges), can be None then whole image is used
-    :type mask_feature: None or binary 2D array
-    :param features: features to include in returned dataset for each sample pixel
-    :param samples_per_class: if None the minimal number is used. If set to a number its upsampled if too high
-    :type samples_per_class: None or int
-    :param debug: if set to True patch id and coordinates are included
-    :return: Dataframe with columns [class feature, features, patch_id, x coord, y coord] id,x,y used for testing
-    '''
+    """
+    :param path: Path to folder containing all patches, folders need to be named eopatch_{number: 0 to no_patches-1}
+    :param no_patches: Total number of patches
+    :param no_samples: Number of samples taken per patch
+    :param class_feature: Name of feature that contains class number.
+        The numbers in the array can be float or nan for no class
+    :type class_feature: (FeatureType, string)
+    :param mask_feature: Feature that defines the area from where samples are taken, if None the whole image is used
+    :type mask_feature: (FeatureType, String) or None
+    :param features: Features to include in returned dataset for each pixel sampled
+    :type features: array of type [(FeatureType, string), ...]
+    :param samples_per_class: Number of samples per class returned after balancing. If the number is higher than minimal
+        number of samples for the smallest class then those numbers are upsampled by repetition.
+        If the argument is None then number is set to the size of the number of samples of the smallest class
+    :type samples_per_class: int or None
+    :param debug: if set to True patch id and coordinates are included in returned DataFrame
+    :return: pandas DataFrame with columns [class feature, features, patch_id, x coord, y coord].
+        id,x and y are used for testing
+    """
 
     columns = [class_feature[1]] + [x[1] for x in features]
     if debug:
@@ -39,7 +35,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
     sample_dict = []
 
     for patch_id in range(no_patches):
-        eopatch = EOPatch.load('{}/eopatch_{}'.format(path, patch_id))
+        eopatch = EOPatch.load('{}/eopatch_{}'.format(path, patch_id), lazy_loading=True)
         _, height, width, _ = eopatch.data['BANDS'].shape
         mask = eopatch[mask_feature[0]][mask_feature[1]].squeeze()
         no_samples = min(height * width, no_samples)
@@ -68,7 +64,6 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
     if samples_per_class is not None:
         least_common = samples_per_class
         replace = True
-        print('samples: ' + str(samples_per_class))
     df_downsampled = pd.DataFrame(columns=columns)
     names = [name[0] for name in class_count]
     dfs = [df[df[class_name] == x] for x in names]
@@ -81,17 +76,17 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
 
 # Example of usage
 if __name__ == '__main__':
-    # path = 'E:/Data/PerceptiveSentinel'
-    path = '/home/beno/Documents/test/Slovenia'
-
-    no_patches = 3
-    no_samples = 10000
-    class_feature = (FeatureType.MASK_TIMELESS, 'LPIS_2017')
-    mask = (FeatureType.MASK_TIMELESS, 'EDGES_INV')
-    features = [(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'), (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
-                (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')]
-    samples_per_class = None
-    debug = True
-
-    samples = sample_patches(path, no_patches, no_samples, class_feature, mask, features, samples_per_class, debug)
+    # patches_path = 'E:/Data/PerceptiveSentinel'
+    patches_path = '/home/beno/Documents/test/Slovenia'
+    samples = sample_patches(path=patches_path,
+                             no_patches=3,
+                             no_samples=10000,
+                             class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
+                             mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+                             features=[(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'),
+                                       (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
+                                       (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')],
+                             samples_per_class=None,
+                             debug=True)
     print(samples)
+    print('\nClass sample size: {}'.format(int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size)))

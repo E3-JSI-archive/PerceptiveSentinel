@@ -3,8 +3,8 @@ from eolearn.io import S2L2AWCSInput, AddSen2CorClassificationFeature
 from eolearn.mask import get_s2_pixel_cloud_detector, AddCloudMaskTask, AddValidDataMaskTask
 from eolearn.features import SimpleFilterTask
 
-from tasks import CreatePatch, AddGeopediaVectorFeature, AddAreaRatio
-from tasks import SentinelHubValidData, Sen2CorValidData, MergeMasks, ValidDataFractionPredicate
+from .tasks import CreatePatch, AddGeopediaVectorFeature, AddAreaRatio
+from .tasks import SentinelHubValidData, Sen2CorValidData, MergeMasks, ValidDataFractionPredicate
 
 from sentinelhub import MimeType
 

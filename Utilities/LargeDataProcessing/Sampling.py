@@ -7,7 +7,7 @@ import collections
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, features, samples_per_class=None,
-                   debug=False):
+                   debug=False, seed=None):
     """
     :param path: Path to folder containing all patches, folders need to be named eopatch_{number: 0 to no_patches-1}
     :param no_patches: Total number of patches
@@ -23,11 +23,13 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
         number of samples for the smallest class then those numbers are upsampled by repetition.
         If the argument is None then number is set to the size of the number of samples of the smallest class
     :type samples_per_class: int or None
-    :param debug: if set to True patch id and coordinates are included in returned DataFrame
+    :param debug: If set to True patch id and coordinates are included in returned DataFrame
+    :param seed: Seed for random generator
     :return: pandas DataFrame with columns [class feature, features, patch_id, x coord, y coord].
         id,x and y are used for testing
     """
-
+    if seed is not None:
+        random.seed(seed)
     columns = [class_feature[1]] + [x[1] for x in features]
     if debug:
         columns = columns + ['patch_no', 'x', 'y']
@@ -70,7 +72,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
     names = [name[0] for name in class_count]
     dfs = [df[df[class_name] == x] for x in names]
     for d in dfs:
-        nd = resample(d, replace=replace, n_samples=least_common)
+        nd = resample(d, replace=replace, n_samples=least_common, random_state=seed)
         df_downsampled = df_downsampled.append(nd)
 
     return df_downsampled
@@ -89,6 +91,7 @@ if __name__ == '__main__':
                                        (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
                                        (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')],
                              samples_per_class=None,
-                             debug=True)
+                             debug=True,
+                             seed=123)
     print(samples)
     print('\nClass sample size: {}'.format(int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size)))

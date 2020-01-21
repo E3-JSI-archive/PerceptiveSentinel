@@ -171,7 +171,7 @@ if __name__ == '__main__':
             return eopatch
 
 
-    no_patches = 3
+    no_patches = 1
 
     path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'

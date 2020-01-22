@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,10 +15,8 @@ from sklearn.metrics import confusion_matrix
 # path = 'E:/Data/PerceptiveSentinel'
 path = '/home/beno/Documents/test/Slovenia'
 
-no_patches = 3
+no_patches = 6
 no_samples = 10000
-class_feature = (FeatureType.MASK_TIMELESS, 'LPIS_2017')
-mask = (FeatureType.MASK_TIMELESS, 'EDGES_INV')
 features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
             (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
             (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
@@ -27,13 +24,24 @@ features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
             (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
             (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
             ]
-samples_per_class = None
-debug = True
 
 feature_names = [t[1] for t in features]
 
-dataset = sample_patches(path, no_patches, no_samples, class_feature, mask, features, samples_per_class, debug)
+dataset = sample_patches(path=path,
+                         no_patches=6,
+                         no_samples=10000,
+                         class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
+                         mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+                         features=features,
+                         samples_per_class=None,
+                         debug=False,
+                         seed=10222)
 
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 150)
+
+print(dataset)
 print('\nClass sample size: {}'.format(int(dataset['LPIS_2017'].size / pd.unique(dataset['LPIS_2017']).size)))
 # no_classes = pd.unique(dataset['LPIS_2017']).size
 
@@ -49,6 +57,7 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random
 sc = StandardScaler()
 x_train = sc.fit_transform(x_train)
 x_test = sc.transform(x_test)
+'''
 d_train = lgb.Dataset(x_train, label=y_train)
 params = {}
 params['learning_rate'] = 0.003
@@ -62,9 +71,15 @@ params['max_depth'] = 10
 clf = lgb.train(params, d_train, 100)
 
 y_pred = clf.predict(x_test)
+'''
+
+model = lgb.LGBMClassifier(objective='multiclass', num_class=24, metric='multi_logloss')
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
 
 cm = confusion_matrix(y_test, y_pred)
 # Accuracy
+print(cm)
 
 accuracy = accuracy_score(y_pred, y_test)
 

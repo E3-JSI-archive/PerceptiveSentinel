@@ -39,7 +39,7 @@ class ExtractEdgesTask(EOTask):
             image_one = image[time]
             edge = self.one_edge(image_one, low_threshold, high_threshold, blur)
             all_edges[time] = edge
-        eopatch.add_feature(FeatureType.MASK, feature_name + '_EDGE', all_edges[..., np.newaxis])
+        #eopatch.add_feature(FeatureType.MASK, feature_name + '_EDGE', all_edges[..., np.newaxis])
         return all_edges
 
     def one_edge(self, image, low_threshold, high_threshold, blur):
@@ -67,7 +67,7 @@ class ExtractEdgesTask(EOTask):
             mask = mask + mask_cur
 
         mask = (mask / t) > self.yearly_low_threshold
-        eopatch.add_feature(FeatureType.MASK_TIMELESS, 'LOW_' + feature[1], mask[..., np.newaxis])
+        #eopatch.add_feature(FeatureType.MASK_TIMELESS, 'LOW_' + feature[1], mask[..., np.newaxis])
         return mask
 
     def normalize_feature(self, feature):
@@ -160,18 +160,16 @@ if __name__ == '__main__':
             img = np.clip(eopatch.data['BANDS'][..., [2, 1, 0]] * 3.5, 0, 1)
             t, w, h, _ = img.shape
             gray_img = np.zeros((t, w, h))
-            print(img[0].shape)
             for time in range(t):
                 img0 = np.clip(eopatch[FeatureType.DATA]['BANDS'][time][..., [2, 1, 0]] * 3.5, 0, 1)
                 img = rgb2gray(img0)
                 gray_img[time] = (img * 255).astype(np.uint8)
 
             eopatch.add_feature(FeatureType.DATA, 'GRAY', gray_img[..., np.newaxis])
-            print(eopatch)
             return eopatch
 
 
-    no_patches = 1
+    no_patches = 7
 
     path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'

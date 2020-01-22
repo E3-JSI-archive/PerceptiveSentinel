@@ -83,15 +83,19 @@ if __name__ == '__main__':
     # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
     patches_path = '/home/beno/Documents/test/Slovenia'
     samples = sample_patches(path=patches_path,
-                             no_patches=3,
+                             no_patches=6,
                              no_samples=10000,
                              class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
                              mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                             features=[(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'),
-                                       (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
-                                       (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')],
+                             features=[(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+                                       (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'NDVI_sd_val'),
+                                       (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
+                                       ],
                              samples_per_class=None,
                              debug=True,
-                             seed=123)
+                             seed=10222)
     print(samples)
     print('\nClass sample size: {}'.format(int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size)))

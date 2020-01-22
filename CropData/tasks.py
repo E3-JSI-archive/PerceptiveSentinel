@@ -7,9 +7,9 @@ from sentinelhub import CRS, transform_bbox, GeopediaFeatureIterator
 from eolearn.core import EOTask, EOPatch, FeatureType
 from skimage.morphology import disk, binary_dilation, binary_erosion
 
-from utilities import get_slovenia_crop_geopedia_idx_to_crop_id_mapping
-from utilities import get_austria_crop_geopedia_idx_to_crop_id_mapping
-from utilities import get_danish_crop_geopedia_idx_to_crop_id_mapping
+from .utilities import get_slovenia_crop_geopedia_idx_to_crop_id_mapping
+from .utilities import get_austria_crop_geopedia_idx_to_crop_id_mapping
+from .utilities import get_danish_crop_geopedia_idx_to_crop_id_mapping
 
 class ValidDataFractionPredicate:
     """

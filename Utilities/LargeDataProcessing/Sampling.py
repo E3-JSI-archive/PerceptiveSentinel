@@ -47,7 +47,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
             for w in range(width):
                 if mask is None or mask[h][w] == 1:
                     subsample_id.append((h, w))
-        subsample_id = random.sample(subsample_id, no_samples)
+        subsample_id = random.sample(subsample_id, min(no_samples, len(subsample_id)))
 
         for h, w in subsample_id:
             class_value = float(-1)

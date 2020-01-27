@@ -24,6 +24,10 @@ currently works only for Slovenia for years 2016 and 2017.
 We currently do not have the mapping for group reduction for Austria and Denmark. Once obtained the data download will be
 implemented for this countries too.
 
+## Heights
+Includes example of code that downloads the digital elevation model. Also contains a task that calculates gradient magnitude
+for each point and saves it as a feature.
+
 ## Stream Features
 The code in the `temporal_features.py` is the work in progress by Filip Koprivec. Once revised it should be integrated
 into the eo-learn package and not needed here. File `all_stream_features.py` uses the before mentioned code to compute all 

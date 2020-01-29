@@ -188,3 +188,5 @@ npm-debug.log
 Utilities/LargeDataProcessing/Samples/
 
 Utilities/LargeDataProcessing/data/DMV0125/
+
+*.txt

@@ -49,6 +49,8 @@ if __name__ == '__main__':
             load: {'eopatch_folder': 'eopatch_{}'.format(i)},
             save: {'eopatch_folder': 'eopatch_{}'.format(i)},
         })
-
     executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
     executor.run()
+
+
+

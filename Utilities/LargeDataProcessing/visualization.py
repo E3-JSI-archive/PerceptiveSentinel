@@ -35,25 +35,25 @@ def color_patch(image, colors=None):
 def display():
     path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'
-    patch_no = 0
+    patch_no = 2
     eopatch = EOPatch.load(path + '/Slovenia/eopatch_{}'.format(patch_no), lazy_loading=True)
     # print(eopatch)
     # print(eopatch.mask_timeless['LPIS_2017'].squeeze())
 
     # plt.subplot(2, 3, 1)
-    seg = eopatch.mask_timeless['EDGES_INV'].squeeze()
+    #seg = eopatch.mask_timeless['EDGES_INV'].squeeze()
     # plt.imshow(seg)
     # plt.show()
     # print(seg.shape)
     # plt.imshow(seg, cmap='gray')
 
     # plt.subplot(2, 3, 2)
-    seg1 = eopatch.mask_timeless['LOW_NDVI'].squeeze()
-    print(seg.shape)
+    #seg1 = eopatch.mask_timeless['LOW_NDVI'].squeeze()
+    #print(seg.shape)
     # plt.imshow(seg1, cmap='gray')
 
     # plt.subplot(2, 3, 3)
-    seg3 = eopatch.mask_timeless['LPIS_2017'].squeeze()
+    #seg3 = eopatch.mask_timeless['LPIS_2017'].squeeze()
     # plt.imshow(seg)
     # plt.show()
     # print(seg.shape)
@@ -65,39 +65,43 @@ def display():
     # plt.show()
     # print(seg.shape)
     # plt.imshow(Image.blend(Image.fromarray(color_patch(seg)), Image.fromarray(seg), alpha=0.5))
+    elevation = eopatch.data_timeless['DEM'].squeeze()
+    incline = eopatch.data_timeless['INCLINE'].squeeze()
 
     cmap = matplotlib.colors.ListedColormap(np.random.rand(23, 3))
     n_time = 5
     image = np.clip(eopatch.data['BANDS'][n_time][..., [3, 2, 1]] * 3.5, 0, 1)
-    mask = np.squeeze(eopatch.mask_timeless['LPIS_2017'])
+    #mask = np.squeeze(eopatch.mask_timeless['LPIS_2017'])
 
-    fig, ax1 = plt.subplots(figsize=(15, 15))
-    # ax0.imshow(image)
+    fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 15))
+    ax0.imshow(image)
+    ax1.imshow(elevation)
+    ax2.imshow(incline)
     # print(image)
     # seg = seg*255
-    image[:, :, 0] = image[:, :, 0] * seg
-    image[:, :, 1] = image[:, :, 1] * seg
-    image[:, :, 2] = image[:, :, 2] * seg
+    # image[:, :, 0] = image[:, :, 0] * seg
+    # image[:, :, 1] = image[:, :, 1] * seg
+    # image[:, :, 2] = image[:, :, 2] * seg
 
-    ax1.imshow(seg, cmap='gray')
-    ax1.imshow(mask, cmap=cmap, alpha=0.8)
+    # ax1.imshow(seg, cmap='gray')
+    # ax1.imshow(mask, cmap=cmap, alpha=0.8)
     # ax1.imshow(seg, cmap='gray', alpha=0.2)
 
-    path = '/home/beno/Documents/test/Slovenia'
-
-    no_patches = patch_no+1
-    no_samples = 10000
-    class_feature = (FeatureType.MASK_TIMELESS, 'LPIS_2017')
-    mask = (FeatureType.MASK_TIMELESS, 'EDGES_INV')
-    features = [(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'), (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
-                (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')]
-    samples_per_class = 10
-    debug = True
-
-    samples = sample_patches(path, no_patches, no_samples, class_feature, mask, features, samples_per_class, debug)
-    print(samples)
-    for index, row in samples.iterrows():
-        ax1.plot(row['x'], row['y'], 'ro', alpha=1)
+    # path = '/home/beno/Documents/test/Slovenia'
+    #
+    # no_patches = patch_no + 1
+    # no_samples = 10000
+    # class_feature = (FeatureType.MASK_TIMELESS, 'LPIS_2017')
+    # mask = (FeatureType.MASK_TIMELESS, 'EDGES_INV')
+    # features = [(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'), (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
+    #             (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')]
+    # samples_per_class = 10
+    # debug = True
+    #
+    # samples = sample_patches(path, no_patches, no_samples, class_feature, mask, features, samples_per_class, debug)
+    # print(samples)
+    # for index, row in samples.iterrows():
+    #    ax1.plot(row['x'], row['y'], 'ro', alpha=1)
 
     plt.show()
 

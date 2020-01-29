@@ -10,11 +10,12 @@ import time
 import cv2
 import numpy as np
 from eolearn.core import EOTask, EOPatch, LinearWorkflow, EOWorkflow, Dependency, FeatureType, OverwritePermission, \
-    LoadFromDisk, SaveToDisk, EOExecutor
+    LoadTask, SaveTask, EOExecutor
 import os
 from Utilities.LargeDataProcessing.all_stream_features import AddBaseFeatures
 from eolearn.features import LinearInterpolation, SimpleFilterTask
 from extract_edges import ExtractEdgesTask
+from PatchDownloader import download_patches,generate_slo_shapefile
 
 
 
@@ -76,23 +77,26 @@ class SentinelHubValidData:
 if __name__ == '__main__':
     path = 'E:/Data/PerceptiveSentinel'
     # path = '/home/beno/Documents/test'
-    # gdf, bbox_list = generate_slo_shapefile(path)
-    # download_patches(path, gdf, bbox_list[:81])
+    gdf, bbox_list = generate_slo_shapefile(path)
+
+    broken_patches = [12]
+    download_patches(path, gdf, bbox_list, broken_patches)
 
     # no_patches = 1085
     no_patches = 1061
+
 
     # path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
-    load = LoadFromDisk(patch_location, lazy_loading=True)
+    load = LoadTask(patch_location, lazy_loading=True)
 
     save_path_location = path + '/Slovenia/'
     if not os.path.isdir(save_path_location):
         os.makedirs(save_path_location)
 
-    save = SaveToDisk(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+    save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
     addStreamNDVI = AddStreamTemporalFeaturesTask(data_feature='NDVI')
     addStreamSAVI = AddStreamTemporalFeaturesTask(data_feature='SAVI')
@@ -126,7 +130,7 @@ if __name__ == '__main__':
                                           )
 
     execution_args = []
-    for id in range(no_patches):
+    for id in broken_patches:
         execution_args.append({
             load: {'eopatch_folder': 'eopatch_{}'.format(id)},
             save: {'eopatch_folder': 'eopatch_{}'.format(id)}
@@ -196,13 +200,13 @@ if __name__ == '__main__':
     start_time = time.time()
     executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
     executor.run(workers=4, multiprocess=True)
-    file = open('timing.txt', 'a')
+    #file = open('timing.txt', 'a')
     running = str(
         dt.datetime.now()) + ' cloud mask, stream features NDVI, EVI, ARVI, SIPI, SAVI, NDWI, removal. Running time: {}\n'.format(
         time.time() - start_time)
     print(running)
-    file.write(running)
-    file.close()
+    #file.write(running)
+    #file.close()
     country = 'Slovenia'
     # country = 'Austria'
     year = 2017

@@ -4,6 +4,7 @@ from sklearn.utils import resample
 import random
 import pandas as pd
 import collections
+import time
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, features, samples_per_class=None,
@@ -46,7 +47,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
             for w in range(width):
                 if mask is None or mask[h][w] == 1:
                     subsample_id.append((h, w))
-        subsample_id = random.sample(subsample_id, no_samples)
+        subsample_id = random.sample(subsample_id, min(no_samples, len(subsample_id)))
 
         for h, w in subsample_id:
             class_value = float(-1)
@@ -82,6 +83,8 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
 if __name__ == '__main__':
     # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
     patches_path = '/home/beno/Documents/test/Slovenia'
+
+    start_time = time.time()
     samples = sample_patches(path=patches_path,
                              no_patches=6,
                              no_samples=10000,
@@ -97,5 +100,14 @@ if __name__ == '__main__':
                              samples_per_class=None,
                              debug=True,
                              seed=10222)
+    sample_time = time.time() - start_time
     print(samples)
-    print('\nClass sample size: {}'.format(int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size)))
+    result = '\nClass sample size: {0}. Sampling time {1:.2}'.format(
+        int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size), sample_time)
+    print(result)
+
+    file = open('timing.txt', 'a')
+    file.write('Sampling all 10000 per patch, downsampling. ' + result)
+    file.close()
+
+    samples.to_csv('Samples/downsampling0.csv')

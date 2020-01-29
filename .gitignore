@@ -184,3 +184,9 @@ npm-debug.log
 .DS_Store
 
 \.idea/
+
+Utilities/LargeDataProcessing/Samples/
+
+Utilities/LargeDataProcessing/data/DMV0125/
+
+*.txt

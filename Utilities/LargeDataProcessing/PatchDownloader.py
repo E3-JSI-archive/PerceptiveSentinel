@@ -1,5 +1,5 @@
 from eolearn.core import EOTask, EOPatch, LinearWorkflow, FeatureType, OverwritePermission, \
-    LoadFromDisk, SaveToDisk, EOExecutor
+    LoadFromDisk, SaveTask, EOExecutor
 import numpy as np
 import geopandas as gpd
 import matplotlib as mpl
@@ -16,7 +16,7 @@ def generate_slo_shapefile(path):
     DATA_FOLDER = os.path.join('data')
 
     area = gpd.read_file(os.path.join(DATA_FOLDER, 'svn_buffered.geojson'))
-    #area = gpd.read_file(os.path.join(DATA_FOLDER, 'austria.geojson'))
+    # area = gpd.read_file(os.path.join(DATA_FOLDER, 'austria.geojson'))
 
     # Convert CRS to UTM_33N
     country_crs = CRS.UTM_33N
@@ -30,7 +30,7 @@ def generate_slo_shapefile(path):
     plt.axis('off');
 
     # Create the splitter to obtain a list of bboxes
-    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 2, 17 * 2))
+    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 3, 17 * 3))
 
     bbox_list = np.array(bbox_splitter.get_bbox_list())
     info_list = np.array(bbox_splitter.get_info_list())
@@ -53,7 +53,7 @@ def generate_slo_shapefile(path):
     return gdf, bbox_list
 
 
-def download_patches(path, shp, bbox_list):
+def download_patches(path, shp, bbox_list, indexes):
     add_data = S2L1CWCSInput(
         layer='BANDS-S2-L1C',
         feature=(FeatureType.DATA, 'BANDS'),  # save under name 'BANDS'
@@ -64,7 +64,7 @@ def download_patches(path, shp, bbox_list):
     path_out = path + '/Slovenia/'
     if not os.path.isdir(path_out):
         os.makedirs(path_out)
-    save = SaveToDisk(path_out, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+    save = SaveTask(path_out, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
     workflow = LinearWorkflow(
         add_data,
@@ -74,12 +74,11 @@ def download_patches(path, shp, bbox_list):
     time_interval = ['2017-01-01', '2017-12-31']  # time interval for the SH request
 
     execution_args = []
-    for idx, bbox in enumerate(bbox_list):
+    for idx, bbox in zip(indexes, bbox_list[indexes]):
         execution_args.append({
             add_data: {'bbox': bbox, 'time_interval': time_interval},
             save: {'eopatch_folder': 'eopatch_{}'.format(idx)}
         })
-
 
     start_time = time.time()
     executor = EOExecutor(workflow, execution_args, save_logs=True)

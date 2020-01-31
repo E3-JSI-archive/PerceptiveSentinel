@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 import time
+import pandas as pd
 
 crop_names = {0: 'Beans', 1: 'Beets', 2: 'Buckwheat', 3: 'Fallow land', 4: 'Grass', 5: 'Hop',
               6: 'Leafy Legumes and/or grass mixture', 7: 'Maize', 8: 'Meadows', 9: 'Orchards', 10: 'Other',
@@ -38,7 +39,7 @@ def get_data(path):
 
 
 def fit_predict(x, y, model, name):
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=0)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
     sc = StandardScaler()
     x_train = sc.fit_transform(x_train)
     x_test = sc.transform(x_test)
@@ -48,7 +49,7 @@ def fit_predict(x, y, model, name):
     y_pred = model.predict(x_test)
     total_time = time.time() - start_time
 
-    #print(confusion_matrix(y_test, y_pred))
+    # print(confusion_matrix(y_test, y_pred))
     accuracy = accuracy_score(y_pred, y_test)
     f1 = f1_score(y_test, y_pred, labels=range(24), average='micro')
 
@@ -58,8 +59,12 @@ def fit_predict(x, y, model, name):
 
 if __name__ == '__main__':
     # path = 'E:/Data/PerceptiveSentinel'
-    path = '/home/beno/Documents/test/Slovenia'
-    dataset = get_data(path)
+    # path = '/home/beno/Documents/test/Slovenia'
+    # dataset = get_data(path)
+
+    samples_path = 'D:\Samples\downsampling1.csv'
+    dataset = pd.read_csv(samples_path)
+    dataset.dropna(axis=0, inplace=True)
 
     y = dataset['LPIS_2017'].to_numpy()
     # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers

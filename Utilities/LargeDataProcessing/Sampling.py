@@ -62,6 +62,8 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
             sample_dict.append(dict(array_for_dict))
 
     df = pd.DataFrame(sample_dict, columns=columns)
+    df.dropna(axis=0, inplace=True)
+
     class_count = collections.Counter(df[class_feature[1]]).most_common()
     least_common = class_count[-1][1]
 
@@ -81,13 +83,13 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
 
 # Example of usage
 if __name__ == '__main__':
-    # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
-    patches_path = '/home/beno/Documents/test/Slovenia'
+    patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
+    # patches_path = '/home/beno/Documents/test/Slovenia'
 
     start_time = time.time()
     samples = sample_patches(path=patches_path,
-                             no_patches=6,
-                             no_samples=10000,
+                             no_patches=1061,
+                             no_samples=500,
                              class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
                              mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
                              features=[(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
@@ -97,17 +99,18 @@ if __name__ == '__main__':
                                        (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
                                        (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
                                        ],
-                             samples_per_class=None,
+                             samples_per_class=500,
                              debug=True,
-                             seed=10222)
+                             seed=None)
     sample_time = time.time() - start_time
+    filename = 'downsamplingOver'
     print(samples)
-    result = '\nClass sample size: {0}. Sampling time {1:.2}'.format(
+    result = 'Class sample size: {0}. Sampling time {1}'.format(
         int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size), sample_time)
     print(result)
 
     file = open('timing.txt', 'a')
-    file.write('Sampling all 10000 per patch, downsampling. ' + result)
+    file.write('Sampling all 500 per patch, file: ' + filename + ' ' + result)
     file.close()
 
-    samples.to_csv('Samples/downsampling0.csv')
+    samples.to_csv('D:/Samples/' + filename + '.csv')

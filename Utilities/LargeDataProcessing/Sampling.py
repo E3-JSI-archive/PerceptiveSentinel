@@ -8,7 +8,7 @@ import time
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, features, samples_per_class=None,
-                   debug=False,seed=None, class_frequency=False):
+                   debug=False, seed=None, class_frequency=False):
     """
     :param path: Path to folder containing all patches, folders need to be named eopatch_{number: 0 to no_patches-1}
     :param no_patches: Total number of patches
@@ -92,17 +92,24 @@ if __name__ == '__main__':
     patches_path = '/home/beno/Documents/test/Slovenia'
 
     start_time = time.time()
-    samples, class_dict = sample_patches(path=patches_path,
-                                         no_patches=3,
-                                         no_samples=10000,
-                                         class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
-                                         mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                                         features=[(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'),
-                                                   (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
-                                                   (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')],
-                                         samples_per_class=None,
-                                         debug=True,
-                                         class_frequency=True)
+    samples = sample_patches(path=patches_path,
+                             no_patches=1061,
+                             no_samples=500,
+                             class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
+                             mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+                             features=[(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+                                       (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'NDVI_sd_val'),
+                                       (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
+                                       (FeatureType.DATA_TIMELESS, 'SIPI_mean_val'),
+                                       (FeatureType.DATA_TIMELESS, 'INCLINATION')
+                                       ],
+                             samples_per_class=500,
+                             debug=True,
+                             seed=None,
+                             class_frequency=True)
+
     sample_time = time.time() - start_time
     filename = 'downsamplingOver'
     print(samples)

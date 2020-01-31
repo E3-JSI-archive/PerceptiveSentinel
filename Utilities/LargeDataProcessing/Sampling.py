@@ -8,7 +8,7 @@ import time
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, features, samples_per_class=None,
-                   debug=False, seed=None):
+                   debug=False,seed=None, class_frequency=False):
     """
     :param path: Path to folder containing all patches, folders need to be named eopatch_{number: 0 to no_patches-1}
     :param no_patches: Total number of patches
@@ -28,6 +28,8 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
     :param seed: Seed for random generator
     :return: pandas DataFrame with columns [class feature, features, patch_id, x coord, y coord].
         id,x and y are used for testing
+    :param class_frequency: If set to True, the function also return dictionary of each class frequency before balancing
+    :type class_frequency: boolean
     """
     if seed is not None:
         random.seed(seed)
@@ -64,7 +66,8 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
     df = pd.DataFrame(sample_dict, columns=columns)
     df.dropna(axis=0, inplace=True)
 
-    class_count = collections.Counter(df[class_feature[1]]).most_common()
+    class_dictionary = collections.Counter(df[class_feature[1]])
+    class_count = class_dictionary.most_common()
     least_common = class_count[-1][1]
 
     replace = False
@@ -78,30 +81,28 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
         nd = resample(d, replace=replace, n_samples=least_common, random_state=seed)
         df_downsampled = df_downsampled.append(nd)
 
+    if class_frequency:
+        return df_downsampled, class_dictionary
     return df_downsampled
 
 
 # Example of usage
 if __name__ == '__main__':
-    patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
-    # patches_path = '/home/beno/Documents/test/Slovenia'
+    # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
+    patches_path = '/home/beno/Documents/test/Slovenia'
 
     start_time = time.time()
-    samples = sample_patches(path=patches_path,
-                             no_patches=1061,
-                             no_samples=500,
-                             class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
-                             mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                             features=[(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
-                                       (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
-                                       (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
-                                       (FeatureType.DATA_TIMELESS, 'NDVI_sd_val'),
-                                       (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
-                                       (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
-                                       ],
-                             samples_per_class=500,
-                             debug=True,
-                             seed=None)
+    samples, class_dict = sample_patches(path=patches_path,
+                                         no_patches=3,
+                                         no_samples=10000,
+                                         class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
+                                         mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+                                         features=[(FeatureType.DATA_TIMELESS, 'NDVI_mean_val'),
+                                                   (FeatureType.DATA_TIMELESS, 'SAVI_max_val'),
+                                                   (FeatureType.DATA_TIMELESS, 'NDVI_pos_surf')],
+                                         samples_per_class=None,
+                                         debug=True,
+                                         class_frequency=True)
     sample_time = time.time() - start_time
     filename = 'downsamplingOver'
     print(samples)

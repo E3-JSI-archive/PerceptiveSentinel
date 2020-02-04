@@ -51,7 +51,7 @@ def fit_predict(x, y, model, name):
 
     # print(confusion_matrix(y_test, y_pred))
     accuracy = accuracy_score(y_pred, y_test)
-    f1 = f1_score(y_test, y_pred, labels=range(24), average='micro')
+    f1 = f1_score(y_test, y_pred, labels=range(24), average='macro')
 
     stats = '{0:20} CA: {1:.4} F1: {2:.4} time: {3:.3}'.format(name, accuracy, f1, total_time)
     print(stats)
@@ -62,10 +62,11 @@ if __name__ == '__main__':
     # path = '/home/beno/Documents/test/Slovenia'
     # dataset = get_data(path)
 
-    samples_path = 'D:\Samples\downsampling1.csv'
+    samples_path = 'D:\Samples\enriched_samples9797.csv'
     dataset = pd.read_csv(samples_path)
-    dataset.dropna(axis=0, inplace=True)
-
+    # dataset.dropna(axis=0, inplace=True)
+    dataset.drop(columns=['INCLINATION'])
+    # dataset.drop(columns=['NDVI_min_val', 'SAVI_min_val', 'INCLINATION'])
     y = dataset['LPIS_2017'].to_numpy()
     # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
     y = [a + 1 for a in y]
@@ -76,8 +77,10 @@ if __name__ == '__main__':
     lgb_model = lgb.LGBMClassifier(objective='multiclass', num_class=24, metric='multi_logloss')
     fit_predict(x, y, lgb_model, 'LightGBM')
 
+    '''
     rf_model = RandomForestClassifier()
     fit_predict(x, y, lgb_model, 'Random forest')
 
     lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
     fit_predict(x, y, lr_model, 'Logistic Regression')
+    '''

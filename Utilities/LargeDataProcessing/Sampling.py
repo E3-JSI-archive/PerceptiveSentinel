@@ -76,12 +76,15 @@ def sample_patches(path, no_patches, no_samples, class_feature, mask_feature, fe
 
             # Enrichment
             if class_value in weak_classes:  # TODO check duplicates
-                neighbours = [-2, -1, 0, 1, 2]
+                neighbours = [-3, -2, -1, 0, 1, 2, 3]
                 for x in neighbours:
                     for y in neighbours:
                         if x != 0 or y != 0:
                             h0 = h + x
                             w0 = w + y
+                            max_h, max_w = 500, 500
+                            if h0 >= max_h or w0 >= max_w or h0 <= 0 or w0 <= 0:
+                                continue
                             val = float(eopatch[class_feature[0]][class_feature[1]][h0][w0])
                             if val in weak_classes:
                                 array_for_dict = [(class_name, val)] + [(f[1], float(eopatch[f[0]][f[1]][h0][w0]))
@@ -121,7 +124,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     no_patches = 1061
-    no_samples = 15000
+    no_samples = 20000
     samples, class_dict = sample_patches(path=patches_path,
                                          no_patches=no_patches,
                                          no_samples=no_samples,
@@ -135,15 +138,15 @@ if __name__ == '__main__':
                                                    (FeatureType.DATA_TIMELESS, 'SIPI_mean_val'),
                                                    (FeatureType.DATA_TIMELESS, 'INCLINATION')
                                                    ],
-                                         samples_per_class=None,
+                                         samples_per_class=20000,
                                          weak_classes=[11, 3, 2, 18, 15, 1, 12],
                                          debug=True,
                                          seed=None,
                                          class_frequency=True)
 
     sample_time = time.time() - start_time
-    filename = 'enriched_samples' + str(int(random.random() + 10000))
-    print(samples)
+    filename = 'enriched_samples' + str(int(random.random() * 10000))
+    # print(samples)
     result = 'Class sample size: {0}. Sampling time {1}'.format(
         int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size), sample_time)
     print(result)

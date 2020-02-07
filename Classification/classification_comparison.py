@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scipy.cluster.hierarchy as sch
 from sklearn import tree
+from streamdm import HoeffdingTree, HoeffdingAdaptiveTree, NaiveBayes, LogisticRegression, MajorityClass, Perceptron, \
+    Bagging
 
 crop_names = {0: 'Beans', 1: 'Beets', 2: 'Buckwheat', 3: 'Fallow land', 4: 'Grass', 5: 'Hop',
               6: 'Legumes or grass', 7: 'Maize', 8: 'Meadows', 9: 'Orchards', 10: 'Other',
@@ -30,17 +32,28 @@ features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
             ]
 
 
-def get_data(path):
-    dataset = sample_patches(path=path,
-                             no_patches=6,
-                             no_samples=10000,
-                             class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
-                             mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                             features=features,
-                             samples_per_class=1000,
-                             debug=False,
-                             seed=10222)
-    return dataset
+def get_data(samples_path):
+    samples_path = '../Utilities/LargeDataProcessing/Samples/enriched_samples9797.csv'
+    dataset = pd.read_csv(samples_path)
+    # dataset.drop(columns=['INCLINATION'])
+    # dataset.drop(columns=['NDVI_min_val', 'SAVI_min_val', 'INCLINATION'])
+    y = dataset['LPIS_2017'].to_numpy()
+    # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
+    y = [a + 1 for a in y]
+
+    feature_names = [t[1] for t in features]
+    x = dataset[feature_names].to_numpy()
+
+    # dataset = sample_patches(path=path,
+    #                          no_patches=6,
+    #                          no_samples=10000,
+    #                          class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
+    #                          mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+    #                          features=features,
+    #                          samples_per_class=1000,
+    #                          debug=False,
+    #                          seed=10222)
+    return x, y
 
 
 def save_figure(plt, file_name):
@@ -79,7 +92,7 @@ def form_clusters(y_test, y_pred, k=0.6):
     return ind
 
 
-def fit_predict(x, y, model, labels, file_name, model_name='LightGBM'):
+def fit_predict(x, y, model, labels, name):
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
     sc = StandardScaler()
     x_train = sc.fit_transform(x_train)
@@ -104,64 +117,50 @@ def fit_predict(x, y, model, labels, file_name, model_name='LightGBM'):
                           ax=ax)
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, labels=no_classes, average='macro')
-    stats = '{0:20} CA: {1:.4} F1: {2:.4} Train: {3:3.1f}s Predict: {4:3.1f}s'.format(model_name, accuracy, f1,
+    stats = '{0:_<40} CA: {1:.4} F1: {2:.4} Train: {3:3.1f}s Predict: {4:3.1f}s'.format(name, accuracy, f1,
                                                                                       total_time,
                                                                                       test_time)
     ax.set_title(stats)
     print(stats)
 
-    save_figure(plt, file_name)
+    save_figure(plt, name + '.png')
     return y_pred, y_test
 
 
 if __name__ == '__main__':
-    # path = 'E:/Data/PerceptiveSentinel'
-    # path = '/home/beno/Documents/test/Slovenia'
-    # dataset = get_data(path)
-
-    samples_path = '../Utilities/LargeDataProcessing/Samples/enriched_samples9797.csv'
-    dataset = pd.read_csv(samples_path)
-    # dataset.dropna(axis=0, inplace=True)
-    # dataset.drop(columns=['INCLINATION'])
-    # dataset.drop(columns=['NDVI_min_val', 'SAVI_min_val', 'INCLINATION'])
-    y = dataset['LPIS_2017'].to_numpy()
-    # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
-    y = [a + 1 for a in y]
-
-    feature_names = [t[1] for t in features]
-    x = dataset[feature_names].to_numpy()
+    x, y = get_data('../Utilities/LargeDataProcessing/Samples/enriched_samples9797.csv')
 
     # LightGBM
     lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
-    y_pred, y_test = fit_predict(x, y, lgb_model, class_names, 'LGBM.png', model_name='LGBM')
+    y_pred, y_test = fit_predict(x, y, lgb_model, class_names, 'LGBM')
     new_index = form_clusters(y_pred, y_test, k=0.5)
     new_dict, class_names_new = create_dict(new_index, class_names)
     clustered_y = [new_index[int(i)] for i in y]
     lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
-    fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered 05.png', model_name='Clustered LGBM')
+    fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered')
 
     # DecisionTree
     clf = tree.DecisionTreeClassifier()
-    y_pred, y_test = fit_predict(x, y, clf, class_names, 'tree.png', 'decision tree')
+    y_pred, y_test = fit_predict(x, y, clf, class_names, 'decision tree')
     new_index = form_clusters(y_pred, y_test, k=0.6)
     _, class_names_new = create_dict(new_index, class_names)
     clustered_y = [new_index[int(i)] for i in y]
     clf = tree.DecisionTreeClassifier()
-    fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree.png', 'clustered tree')
+    fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree')
 
     # Random Forest
     rf_model = RandomForestClassifier()
-    y_pred, y_test = fit_predict(x, y, rf_model, class_names, 'random forest.png', 'random forest')
+    y_pred, y_test = fit_predict(x, y, rf_model, class_names, 'random forest')
     new_index = form_clusters(y_pred, y_test, k=0.6)
     _, class_names_new = create_dict(new_index, class_names)
     clustered_y = [new_index[int(i)] for i in y]
-    fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered forest.png', 'clustered RF')
+    fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered RF')
 
-    # # Logistic Regression
-    # lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
-    # y_pred, y_test = fit_predict(x, y, lr_model, class_names, 'logistic regression.png', 'logistic regression')
-    #
-    # new_index = form_clusters(y_pred, y_test, k=0.6)
-    # _, class_names_new = create_dict(new_index, class_names)
-    # clustered_y = [new_index[int(i)] for i in y]
-    # fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression.png', 'logistic regression')
+    # Logistic Regression
+    lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
+    y_pred, y_test = fit_predict(x, y, lr_model, class_names, 'logistic regression')
+
+    new_index = form_clusters(y_pred, y_test, k=0.6)
+    _, class_names_new = create_dict(new_index, class_names)
+    clustered_y = [new_index[int(i)] for i in y]
+    fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression')

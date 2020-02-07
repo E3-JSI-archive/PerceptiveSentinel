@@ -111,7 +111,7 @@ methods = [
 if __name__ == '__main__':
 
     # x, y = get_data('../Utilities/LargeDataProcessing/Samples/enriched_samples9797.csv')
-    x, y = get_data('../Utilities/LargeDataProcessing/Samples/enriched_samples10000.csv')
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/enriched_samples10000.csv')
 
     for method in methods:
         learner = method['ctor']()

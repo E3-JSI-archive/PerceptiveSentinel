@@ -2,7 +2,7 @@
 
 
 ### Always clear the cells before pushing
-![clear](images/jupyter clear.png)
+![](images/jupyter_clear.png)
 
 ## TODO
 Malo sem razdelil delo, če weather in rapids ne paše v `LPIS classification pipeline.ipynb` naredite nov notebook.

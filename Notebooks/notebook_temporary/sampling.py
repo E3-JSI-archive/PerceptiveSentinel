@@ -614,12 +614,11 @@ class BalancedClassSampler:
 
     def get_prior_class_distribution(self):
         """
-        Returns the distribution of samples before balancing. Also balances the classes if they are not already.
         :return: Distribution of samples before balancing
         """
-        if not self.class_distribution:
-            self.balance_data()
-        return dict(self.class_distribution)
+        all_sampled_data = pd.DataFrame(self.sampled_data, columns=self.columns)
+        all_sampled_data.dropna(axis=0, inplace=True)
+        return dict(collections.Counter(collections.Counter(all_sampled_data[self.class_feature[1]])))
 
 
 class BalancedClassSamplerTask(EOTask):

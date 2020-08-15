@@ -14,7 +14,7 @@ import itertools as it
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, MergeFeatureTask, RemoveFeature
 from eolearn.core import MapFeatureTask
 from eolearn.ml_tools.utilities import rolling_window
 
@@ -474,3 +474,198 @@ class TemporalRollingWindowTask(MapFeatureTask):
         rtr = np.moveaxis(self.inner_function(rolling_window(feature, (self.window_size, 0, 0, 0)), axis=-1,
                                               **self.kwargs).squeeze(-1), 0, 2)
         return rtr
+
+
+class AddBasicStatisticTask(EOTask):
+
+    def __init__(self, input_feature=(FeatureType.DATA, 'NDVI'),
+                 functions=None, output_feature=(FeatureType.DATA_TIMELESS, 'NDVI_BASIC_STATISTIC'),
+                 feature_name_prefix='BASIC_STATISTIC_INTERMEDIATE_'):
+        self.input_feature = next(iter(self._parse_features(input_feature, default_feature_type=FeatureType.DATA)))
+        self.feature_type, self.feature_name = self.input_feature
+
+        self.output_feature = next(iter(self._parse_features(output_feature,
+                                                             default_feature_type=FeatureType.DATA_TIMELESS)))
+        self.output_feature_type, self.output_feature_name = self.output_feature
+
+        self.functions = functions or []
+        self.feature_name_prefix = feature_name_prefix
+
+    def execute(self, eopatch, **kwargs):
+        output_features = [
+            (self.output_feature_type, f"{self.feature_name_prefix}{ind}") for ind in range(len(self.functions))
+        ]
+        merge_task = MergeFeatureTask(output_features, self.output_feature)
+        remove_task = RemoveFeature(output_features)
+
+        for ind, (function, *f_kwargs) in enumerate(self.functions):
+            pass_kwargs = f_kwargs[0] if f_kwargs else {}
+            eopatch = MapFeatureTask(self.input_feature,
+                                     (self.output_feature_type, f"{self.feature_name_prefix}{ind}"),
+                                     function, **pass_kwargs)(eopatch)
+
+        eopatch = merge_task(eopatch)
+        return remove_task(eopatch)
+
+
+class RollingWindowTasks(EOTask):
+    def __init__(self, input_feature, output_feature_name, window_size):
+        self.input_feature = next(iter(self._parse_features(input_feature)))
+        self.window_size = window_size
+        self.output_feature_name = output_feature_name
+        self.max_task = TemporalRollingWindowTask(
+            self.input_feature, (FeatureType.DATA_TIMELESS, output_feature_name + '_max'), np.max,
+            self.window_size)
+        self.min_task = TemporalRollingWindowTask(
+            self.input_feature, (FeatureType.DATA_TIMELESS, output_feature_name + '_min'), np.min,
+            self.window_size)
+        self.mean_task = TemporalRollingWindowTask(
+            self.input_feature, (FeatureType.DATA_TIMELESS, output_feature_name + '_mean'), np.mean,
+            self.window_size)
+
+    def execute(self, eopatch, **kwargs):
+        eopatch = (self.max_task * self.min_task * self.mean_task)(eopatch)
+
+        difference = (eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_max'] -
+                      eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_min'])[..., np.newaxis]
+
+        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_max'] = \
+            np.max(difference, axis=-2)
+        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_min'] = \
+            np.min(difference, axis=-2)
+        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_diff'] = difference.squeeze(-1)
+        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_max_mean'] = \
+            np.max(eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_mean'], axis=-1)[..., np.newaxis]
+
+        return eopatch
+
+
+
+class ValeroWorkflow(EOTask):
+    def __init__(self, input_feature, output_feature_name=None, window_size=2, ndvi_feature=(FeatureType.DATA, "NDVI"), interval_tolerance=0.1,
+                 base_surface_min=-1):
+        self.input_feature = next(iter(self._parse_features(input_feature, default_feature_type=FeatureType.DATA)))
+        output_feature_name = output_feature_name or self.input_feature[1]
+        self.output_feature_name = output_feature_name
+
+        self.ndvi_feature = next(iter(self._parse_features(ndvi_feature)))
+
+        self.basic_statistic = AddBasicStatisticTask(self.input_feature, functions=[(fun, {'axis': 0}) for fun in
+                                                                               [np.max, np.min, np.mean, np.std]],
+                                                     output_feature=self.output_feature_name + "_stats")
+        print(self.input_feature)
+        self.rolling_windows = RollingWindowTasks(self.input_feature, output_feature_name, window_size)
+
+        self.max_mean_len_task = MaxMeanLenTask(
+            self.input_feature, (FeatureType.DATA_TIMELESS, self.rolling_windows.output_feature_name + '_max_mean'),
+            output_feature_name, interval_tolerance, base_surface_min)
+
+        self.positive_derivative_feature = (FeatureType.MASK, 'positive_derivative')
+        self.negative_derivative_feature = (FeatureType.MASK, 'negative_derivative')
+        print(self.input_feature, 123)
+        self.positive_derivative_task = SurfaceExtractionTask(self.input_feature, 'pos_derivative', ndvi_feature,
+                                                              self.positive_derivative_feature)
+        self.negative_derivative_task = SurfaceExtractionTask(self.input_feature, 'neg_derivative', ndvi_feature,
+                                                              self.negative_derivative_feature)
+
+    def execute(self, eopatch, **kwargs):
+        eopatch = self.basic_statistic(eopatch)
+        eopatch = self.rolling_windows(eopatch)
+        print("After rolling")
+        eopatch = self.max_mean_len_task(eopatch)
+
+        all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
+        grad = np.gradient(eopatch[self.input_feature], all_dates, axis=0)
+        eopatch[self.positive_derivative_feature] = grad >= 0
+        eopatch[self.negative_derivative_feature] = grad <= 0
+        print("Derivative")
+        eopatch = (self.positive_derivative_task * self.negative_derivative_task)(eopatch)
+
+        max_val_feature = 'max_val'
+        min_val_feature = 'min_val'
+        mean_val_feature = 'mean_val'
+        sd_val_feature = 'sd_val'
+        diff_max_feature = 'diff_max'
+        diff_min_feature = 'diff_min'
+        diff_diff_feature = 'diff_diff'
+        max_mean_feature = 'max_mean_feature'
+        max_mean_len_feature = 'max_mean_len'
+        max_mean_surf_feature = 'max_mean_surf'
+        pos_surf_feature = 'pos_surf'
+        pos_len_feature = 'pos_len'
+        pos_rate_feature = 'pos_rate'
+        neg_surf_feature = 'neg_surf'
+        neg_len_feature = 'neg_len'
+        neg_rate_feature = 'neg_rate'
+        pos_transition_feature = 'pos_tran'
+        neg_transition_feature = 'neg_tran'
+        def set_val(name, value):
+            eopatch.data_timeless[self.output_feature_name + "_" + name] = value
+
+        set_val(max_val_feature, eopatch[self.basic_statistic.output_feature][..., 0, np.newaxis])
+        set_val(min_val_feature, eopatch[self.basic_statistic.output_feature][..., 1, np.newaxis])
+        set_val(mean_val_feature, eopatch[self.basic_statistic.output_feature][..., 2, np.newaxis])
+        set_val(sd_val_feature, eopatch[self.basic_statistic.output_feature][..., 3, np.newaxis])
+
+        set_val(diff_max_feature, eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_max"])
+        set_val(diff_min_feature, eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_min"])
+        set_val(diff_diff_feature, eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_diff"])
+        set_val(max_mean_feature, eopatch.data_timeless[self.rolling_windows.output_feature_name + "_max_mean"])
+
+        set_val(max_mean_len_feature, eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_len"])
+        set_val(max_mean_surf_feature, eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_surf"])
+
+        set_val(pos_surf_feature, eopatch.data_timeless[self.positive_derivative_task.output_feature_name][..., 0, np.newaxis])
+        set_val(pos_len_feature, eopatch.data_timeless[self.positive_derivative_task.output_feature_name][..., 1, np.newaxis])
+        set_val(pos_rate_feature, eopatch.data_timeless[self.positive_derivative_task.output_feature_name][..., 2, np.newaxis])
+
+        set_val(pos_transition_feature, eopatch.mask_timeless[self.positive_derivative_task.output_feature_name + "_transition"][..., 0, np.newaxis])
+
+        set_val(neg_surf_feature, eopatch.data_timeless[self.negative_derivative_task.output_feature_name][..., 0, np.newaxis])
+        set_val(neg_len_feature, eopatch.data_timeless[self.negative_derivative_task.output_feature_name][..., 1, np.newaxis])
+        set_val(neg_rate_feature, eopatch.data_timeless[self.negative_derivative_task.output_feature_name][..., 2, np.newaxis])
+
+        set_val(neg_transition_feature, eopatch.mask_timeless[self.negative_derivative_task.output_feature_name + "_transition"][..., 1, np.newaxis])
+
+        del eopatch.data_timeless[self.basic_statistic.output_feature_name]
+        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_max"]
+        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_min"]
+        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_diff"]
+        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_max_mean"]
+
+        del eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_len"]
+        del eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_surf"]
+
+        del eopatch.data_timeless[self.positive_derivative_task.output_feature_name]
+        del eopatch.mask_timeless[self.positive_derivative_task.output_feature_name + "_transition"]
+        del eopatch.data_timeless[self.negative_derivative_task.output_feature_name]
+        del eopatch.mask_timeless[self.negative_derivative_task.output_feature_name + "_transition"]
+        print("Finished")
+        return eopatch
+
+    def feature_list(self):
+        max_val_feature = 'max_val'
+        min_val_feature = 'min_val'
+        mean_val_feature = 'mean_val'
+        sd_val_feature = 'sd_val'
+        diff_max_feature = 'diff_max'
+        diff_min_feature = 'diff_min'
+        diff_diff_feature = 'diff_diff'
+        max_mean_feature = 'max_mean_feature'
+        max_mean_len_feature = 'max_mean_len'
+        max_mean_surf_feature = 'max_mean_surf'
+        pos_surf_feature = 'pos_surf'
+        pos_len_feature = 'pos_len'
+        pos_rate_feature = 'pos_rate'
+        neg_surf_feature = 'neg_surf'
+        neg_len_feature = 'neg_len'
+        neg_rate_feature = 'neg_rate'
+        pos_transition_feature = 'pos_tran'
+        neg_transition_feature = 'neg_tran'
+        return [j + "_" + self.output_feature_name for j in
+                [max_val_feature, min_val_feature, mean_val_feature, sd_val_feature, diff_max_feature, diff_min_feature,
+                 diff_diff_feature,
+                 max_mean_feature, max_mean_len_feature, max_mean_surf_feature, pos_surf_feature, pos_len_feature,
+                 pos_rate_feature, neg_surf_feature, neg_len_feature, neg_rate_feature,
+                 pos_transition_feature, neg_transition_feature]
+                ]

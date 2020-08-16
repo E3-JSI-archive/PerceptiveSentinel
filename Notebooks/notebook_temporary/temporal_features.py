@@ -533,17 +533,18 @@ class RollingWindowTasks(EOTask):
             np.max(difference, axis=-2)
         eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_min'] = \
             np.min(difference, axis=-2)
-        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_diff'] = difference.squeeze(-1)
+        eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_diff'] = \
+            eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_diff_max'] - eopatch[FeatureType.DATA_TIMELESS][
+            self.output_feature_name + '_diff_min']
         eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_max_mean'] = \
             np.max(eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_mean'], axis=-1)[..., np.newaxis]
 
         return eopatch
 
 
-
 class ValeroWorkflow(EOTask):
     def __init__(self, input_feature, output_feature_name=None, window_size=2, ndvi_feature=(FeatureType.DATA, "NDVI"), interval_tolerance=0.1,
-                 base_surface_min=-1):
+                 base_surface_min=-1, valid_mask_feature=None):
         self.input_feature = next(iter(self._parse_features(input_feature, default_feature_type=FeatureType.DATA)))
         output_feature_name = output_feature_name or self.input_feature[1]
         self.output_feature_name = output_feature_name
@@ -558,15 +559,15 @@ class ValeroWorkflow(EOTask):
 
         self.max_mean_len_task = MaxMeanLenTask(
             self.input_feature, (FeatureType.DATA_TIMELESS, self.rolling_windows.output_feature_name + '_max_mean'),
-            output_feature_name, interval_tolerance, base_surface_min)
+            output_feature_name, interval_tolerance, base_surface_min, valid_mask_feature=valid_mask_feature)
 
         self.positive_derivative_feature = (FeatureType.MASK, 'positive_derivative')
         self.negative_derivative_feature = (FeatureType.MASK, 'negative_derivative')
-        print(self.input_feature, 123)
+
         self.positive_derivative_task = SurfaceExtractionTask(self.input_feature, 'pos_derivative', ndvi_feature,
-                                                              self.positive_derivative_feature)
+                                                              self.positive_derivative_feature, valid_mask_feature=valid_mask_feature)
         self.negative_derivative_task = SurfaceExtractionTask(self.input_feature, 'neg_derivative', ndvi_feature,
-                                                              self.negative_derivative_feature)
+                                                              self.negative_derivative_feature, valid_mask_feature=valid_mask_feature)
 
     def execute(self, eopatch, **kwargs):
         eopatch = self.basic_statistic(eopatch)
@@ -628,13 +629,9 @@ class ValeroWorkflow(EOTask):
         set_val(neg_transition_feature, eopatch.mask_timeless[self.negative_derivative_task.output_feature_name + "_transition"][..., 1, np.newaxis])
 
         del eopatch.data_timeless[self.basic_statistic.output_feature_name]
-        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_max"]
-        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_min"]
-        del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_diff_diff"]
         del eopatch.data_timeless[self.rolling_windows.output_feature_name + "_max_mean"]
 
-        del eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_len"]
-        del eopatch.data_timeless[self.max_mean_len_task.output_feature_name + "_max_mean_surf"]
+        #del eopatch.data_timeless[self.max_mean_len_task.output_feature_name]
 
         del eopatch.data_timeless[self.positive_derivative_task.output_feature_name]
         del eopatch.mask_timeless[self.positive_derivative_task.output_feature_name + "_transition"]
@@ -662,7 +659,7 @@ class ValeroWorkflow(EOTask):
         neg_rate_feature = 'neg_rate'
         pos_transition_feature = 'pos_tran'
         neg_transition_feature = 'neg_tran'
-        return [j + "_" + self.output_feature_name for j in
+        return [self.output_feature_name + "_" + j for j in
                 [max_val_feature, min_val_feature, mean_val_feature, sd_val_feature, diff_max_feature, diff_min_feature,
                  diff_diff_feature,
                  max_mean_feature, max_mean_len_feature, max_mean_surf_feature, pos_surf_feature, pos_len_feature,

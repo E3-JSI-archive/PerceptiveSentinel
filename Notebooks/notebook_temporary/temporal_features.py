@@ -539,6 +539,10 @@ class RollingWindowTasks(EOTask):
         eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_max_mean'] = \
             np.max(eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name + '_mean'], axis=-1)[..., np.newaxis]
 
+        del eopatch.data_timeless[self.output_feature_name + "_max"]
+        del eopatch.data_timeless[self.output_feature_name + "_min"]
+        del eopatch.data_timeless[self.output_feature_name + "_mean"]
+
         return eopatch
 
 

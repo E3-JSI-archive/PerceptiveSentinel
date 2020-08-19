@@ -191,3 +191,5 @@ Utilities/LargeDataProcessing/data/DMV0125/
 
 *.txt
 /Notebooks/patches/
+/Notebooks/data/
+/Notebooks/models/

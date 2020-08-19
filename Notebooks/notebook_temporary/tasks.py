@@ -1,3 +1,5 @@
+import string
+
 import numpy as np
 import geopandas as gpd
 import pandas as pd
@@ -277,5 +279,25 @@ class CountValid(EOTask):
 
     def execute(self, eopatch):
         eopatch.add_feature(FeatureType.MASK_TIMELESS, self.name, np.count_nonzero(eopatch.mask[self.what], axis=0))
+
+        return eopatch
+
+
+class PredictPatch(EOTask):
+    """
+    Task to make model predictions on a patch, given the list of models,
+    features and base name of the output features.
+    """
+    def __init__(self, model, features, pred_mask_name):
+        self.model = model
+        self.features = features
+        self.pred_mask_name = pred_mask_name
+
+    def execute(self, eopatch):
+        features = np.array([eopatch.data_timeless[f].squeeze() for f in self.features])
+        f, h, w = features.shape
+        features = np.moveaxis(features, 0, 2).reshape(h * w, f)
+        labels = self.model.predict(features).astype(np.uint8).reshape(h, w, 1)
+        eopatch.add_feature(FeatureType.MASK_TIMELESS, self.pred_mask_name, labels)
 
         return eopatch

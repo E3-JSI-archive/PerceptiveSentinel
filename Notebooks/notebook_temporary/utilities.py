@@ -1,3 +1,9 @@
+from sentinelhub import GeopediaFeatureIterator, GeopediaSession
+from eolearn.core import EOTask, EOPatch, LinearWorkflow, FeatureType, OverwritePermission, \
+    LoadTask, SaveTask, EOExecutor
+from eolearn.io import SentinelHubDemTask
+
+import os
 import datetime
 import math
 import os
@@ -11,6 +17,18 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sentinelhub import GeopediaFeatureIterator, GeopediaSession
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score
 from tqdm.notebook import tqdm
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.patches as mpatches
+import matplotlib
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from joblib import dump, load
+from sklearn import tree
+from collections import Counter
 
 
 def get_slovenia_crop_geopedia_idx_to_crop_id_mapping():
@@ -69,11 +87,84 @@ def get_group_id(crop_group, crop_group_df, group_name='GROUP_1_NAME',
     Returns numeric crop group value for specified crop group name. The mapping is obtained from
     the specified crop group pandas DataFrame.
     """
-    values = crop_group_df[crop_group_df[group_name]==crop_group][group_id].values
-    if len(values)==0:
+    values = crop_group_df[crop_group_df[group_name] == crop_group][group_id].values
+    if len(values) == 0:
         return default_value
     else:
         return values[-1]
+
+
+class AddBaseFeatures(EOTask):
+
+    def __init__(self, c1=6, c2=7.5, L=1, Lvar=0.5, delta=10 ** -10):
+        self.c1 = c1
+        self.c2 = c2
+        self.L = L
+        self.Lvar = Lvar
+
+        # We add a small number that doesn't significantly change the result to avoid divisions by zero
+        self.delta = delta
+
+    def execute(self, eopatch):
+        print('pststs')
+        nir = eopatch.data['BANDS'][..., [7]]
+        blue = eopatch.data['BANDS'][..., [1]]
+        green = eopatch.data['BANDS'][..., [2]]
+        red = eopatch.data['BANDS'][..., [3]]
+        eopatch.add_feature(FeatureType.DATA, 'NIR', nir)
+        eopatch.add_feature(FeatureType.DATA, 'BLUE', blue)
+        eopatch.add_feature(FeatureType.DATA, 'RED', red)
+        eopatch.add_feature(FeatureType.DATA, 'GREEN', green)
+
+        arvi = np.clip((nir - (2 * red) + blue) / (nir + (2 * red) + blue + self.delta), -1, 1)
+        eopatch.add_feature(FeatureType.DATA, 'ARVI', arvi)
+
+        evi = np.clip(2.5 * ((nir - red) / (nir + (self.c1 * red) - (self.c2 * blue) + self.L + self.delta)), -1, 1)
+        eopatch.add_feature(FeatureType.DATA, 'EVI', evi)
+
+        ndvi = np.clip((nir - red) / (nir + red + self.delta), -1, 1)
+        eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
+
+        ndwi = np.clip((blue - red) / (blue + red + self.delta), -1, 1)
+        eopatch.add_feature(FeatureType.DATA, 'NDWI', ndwi)
+
+        sipi = np.clip((nir - blue) / (nir - red + self.delta), 0, 2)
+        eopatch.add_feature(FeatureType.DATA, 'SIPI', sipi)
+
+        savi = np.clip(((nir - red) / (nir + red + self.Lvar + self.delta)) * (1 + self.Lvar), -1, 1)
+        eopatch.add_feature(FeatureType.DATA, 'SAVI', savi)
+
+        return eopatch
+
+
+# Color scheme for coloring the classes and legend
+class_name_color = {0: ('Not Farmland', 'xkcd:black'),
+                    1: ('Grass', 'xkcd:brown'),
+                    2: ('Maize', 'xkcd:butter'),
+                    3: ('Orchards', 'xkcd:royal purple'),
+                    4: ('Other', 'xkcd:white'),
+                    5: ('Peas', 'xkcd:spring green'),
+                    6: ('Potatoes', 'xkcd:poo'),
+                    7: ('Pumpkins', 'xkcd:pumpkin'),
+                    8: ('Soybean', 'xkcd:baby green'),
+                    9: ('Summer cereals', 'xkcd:cool blue'),
+                    10: ('Sun flower', 'xkcd:piss yellow'),
+                    11: ('Vegetables', 'xkcd:bright pink'),
+                    12: ('Vineyards', 'xkcd:grape'),
+                    13: ('Winter cereals', 'xkcd:ice blue'),
+                    14: ('Winter rape', 'xkcd:neon blue')}
+
+
+def draw_histogram(distribution):
+    named = dict()
+    for no in distribution.keys():
+        value = distribution[no]
+        named[class_name_color[no][0]] = value
+
+    distribution = named
+    plt.bar(range(len(distribution)), list(distribution.values()), align='center')
+    plt.xticks(range(len(distribution)), list(distribution.keys()), rotation='vertical')
+    plt.show()
 
 
 def get_eopatch_ids(id_bottom_left, id_top_right, bbox_grid):
@@ -154,7 +245,7 @@ def plot_grid(id_grid, patch_dir, img_func, img_func_args={}, imshow_args={}, ti
         del eopatch
 
     fig.set_size_inches(size, size * aspect_ratio + 4 * int(bool(colorbar)))
-    
+
     if title:
         plt.tight_layout(rect=[0, 0.03, 1, 0.97])
     else:
@@ -245,7 +336,7 @@ def plot_roi(country, country_grid, eopatch_ids=None, title=None, size=20):
     :type size: int, optional
     """
     roi_grid = None
-    
+
     if eopatch_ids is not None:
         roi_grid = country_grid.iloc[eopatch_ids.ravel()]
 
@@ -284,7 +375,6 @@ def plot_roi(country, country_grid, eopatch_ids=None, title=None, size=20):
 
 
 def plot_features(path, features=None, size=20, max_cols=4):
-
     eopatch = EOPatch.load(path, lazy_loading=True)
 
     if features:
@@ -306,14 +396,13 @@ def plot_features(path, features=None, size=20, max_cols=4):
     fig = plt.figure(figsize=(20, 20 / num_cols * num_rows))
     # fig.suptitle(f'eopatch_{idx}', fontsize=26)
 
-
     for key in data_timeless_keys:
         count += 1
         ax = plt.subplot(num_rows, num_cols, count)
 
         image = eopatch.data_timeless[key].squeeze()
         image -= image.min()
-        image *= (255.0/image.max())
+        image *= (255.0 / image.max())
         plt.imshow(image)
         # plt.imshow(eopatch.data_timeless[key].squeeze())
 
@@ -339,7 +428,7 @@ def plot_confusion_matrix(y_test, y_pred, labels, title=None, size=10):
 
     fig, ax = plt.subplots(figsize=(size, size))
     im = ax.matshow(cm, cmap='viridis')
-    plt.colorbar(im,fraction=0.0457, pad=0.04)
+    plt.colorbar(im, fraction=0.0457, pad=0.04)
 
     ax.set_xticks(ticks)
     ax.set_xticklabels(labels, rotation=90)

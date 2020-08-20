@@ -106,12 +106,15 @@ class AddBaseFeatures(EOTask):
         self.delta = delta
 
     def execute(self, eopatch):
+        print('pststs')
         nir = eopatch.data['BANDS'][..., [7]]
         blue = eopatch.data['BANDS'][..., [1]]
+        green = eopatch.data['BANDS'][..., [2]]
         red = eopatch.data['BANDS'][..., [3]]
         eopatch.add_feature(FeatureType.DATA, 'NIR', nir)
         eopatch.add_feature(FeatureType.DATA, 'BLUE', blue)
         eopatch.add_feature(FeatureType.DATA, 'RED', red)
+        eopatch.add_feature(FeatureType.DATA, 'GREEN', green)
 
         arvi = np.clip((nir - (2 * red) + blue) / (nir + (2 * red) + blue + self.delta), -1, 1)
         eopatch.add_feature(FeatureType.DATA, 'ARVI', arvi)

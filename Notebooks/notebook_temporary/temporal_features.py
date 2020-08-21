@@ -14,7 +14,7 @@ import itertools as it
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType, MergeFeatureTask, RemoveFeature
+from eolearn.core import EOTask, FeatureType, MergeFeatureTask, RemoveFeature, EOWorkflow, LoadTask
 from eolearn.core import MapFeatureTask
 from eolearn.ml_tools.utilities import rolling_window
 
@@ -558,7 +558,7 @@ class ValeroWorkflow(EOTask):
         self.basic_statistic = AddBasicStatisticTask(self.input_feature, functions=[(fun, {'axis': 0}) for fun in
                                                                                [np.max, np.min, np.mean, np.std]],
                                                      output_feature=self.output_feature_name + "_stats")
-        print(self.input_feature)
+        # print(self.input_feature)
         self.rolling_windows = RollingWindowTasks(self.input_feature, output_feature_name, window_size)
 
         self.max_mean_len_task = MaxMeanLenTask(
@@ -572,6 +572,25 @@ class ValeroWorkflow(EOTask):
                                                               self.positive_derivative_feature, valid_mask_feature=valid_mask_feature)
         self.negative_derivative_task = SurfaceExtractionTask(self.input_feature, 'neg_derivative', ndvi_feature,
                                                               self.negative_derivative_feature, valid_mask_feature=valid_mask_feature)
+
+    def tasks(self, bands_task=LoadTask(".")):
+        input_task = LoadTask(".")
+        return [
+            (input_task, [bands_task], f"Calculate index {self.input_feature[1]}"),
+            (self.basic_statistic, [input_task], f"Basic statistics {self.input_feature[1]}"),
+            (self.rolling_windows, [input_task], f"Rolling window statistics {self.input_feature[1]}"),
+            (self.max_mean_len_task, [self.rolling_windows], f"Max mean len statistic {self.input_feature[1]}"),
+            (self.positive_derivative_task, [input_task], f"Positive derivative statistics {self.input_feature[1]}"),
+            (self.negative_derivative_task, [input_task], f"Negative derivative statistics {self.input_feature[1]}"),
+        ]
+
+    def to_workflow(self):
+        input_task = LoadTask(".")  # Dummy to show correct graph
+        return EOWorkflow([
+            (input_task, [], "Download bands"),
+            *self.tasks(input_task),
+        ]
+        )
 
     def execute(self, eopatch, **kwargs):
         eopatch = self.basic_statistic(eopatch)
